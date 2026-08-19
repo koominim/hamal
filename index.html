@@ -409,7 +409,7 @@
   .rail-b .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .rail-b .cnt{flex:0 0 auto; font-size:11.5px; font-weight:700; color:var(--muted-2);
     font-variant-numeric:tabular-nums}
-  .rail-b.on .cnt{color:var(--brand-deep)}
+  .rail-b.on .cnt{color:inherit; opacity:.72; background:transparent}
   .rail .sep{height:1px; background:var(--line-soft); margin:7px 15px}
   .rail .clr{margin:8px 15px 0; border:1px dashed var(--line-strong); background:transparent;
     color:var(--muted); border-radius:999px; padding:6px 12px; font-family:inherit; font-size:12px;
@@ -939,10 +939,15 @@ const IC = {
   grocery:'<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
   task:'<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
   tag:'<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.8 8.8a2 2 0 0 0 2.8 0l6.4-6.4a2 2 0 0 0 0-2.8Z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+  reminder:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
 };
+/* 'reminder' הוא תיוג-מערכת: הוא נדבק לבד לכל תזכורת חוזרת ואי אפשר למחוק
+   אותו, כי הוא הדרך היחידה לראות את התזכורות שהוצאו מרשימת המשימות. */
+const REMINDER_KEY = 'reminder';
 const DEFAULT_CATS = [
   { key:'task',      label:'משימות',    color:'#7c8ba0', icon:IC.task },
   { key:'grocery',   label:'קניות',     color:'#e0a53a', icon:IC.grocery },
+  { key:'reminder',  label:'תזכורות',   color:'#d99a3c', icon:IC.reminder },
   { key:'family',    label:'בני משפחה', color:'#5b93d6', icon:IC.family },
   { key:'medical',   label:'רפואה',     color:'#d67373', icon:IC.medical },
   { key:'education', label:'חינוך',     color:'#8a7fd1', icon:IC.education },
@@ -960,9 +965,16 @@ const CATS_LS = 'hamal_cats_v1';
 function loadCats(){
   try{
     const raw = localStorage.getItem(CATS_LS);
-    if(raw){ const arr = JSON.parse(raw); if(Array.isArray(arr) && arr.length) return orderCats(arr.map(c=>({icon:IC.tag, ...c}))); }
+    if(raw){ const arr = JSON.parse(raw); if(Array.isArray(arr) && arr.length) return orderCats(withReminderCat(arr.map(c=>({icon:IC.tag, ...c})))); }
   }catch(e){}
   return orderCats(DEFAULT_CATS.map(c=>({...c})));
+}
+/* מי שכבר השתמש בלוח שמר רשימת תגיות ישנה ב-localStorage, ולכן תוספת
+   ל-DEFAULT_CATS לבדה לא הייתה מגיעה אליו לעולם. */
+function withReminderCat(arr){
+  if (arr.find(c => c.key === REMINDER_KEY)) return arr;
+  const def = DEFAULT_CATS.find(c => c.key === REMINDER_KEY);
+  return arr.concat([{ ...def }]);
 }
 function saveCats(cats){ try{ localStorage.setItem(CATS_LS, JSON.stringify(cats)); }catch(e){} }
 function isMobileView(){ try{ return !!(window.matchMedia && window.matchMedia('(max-width:900px)').matches); }catch(e){ return false; } }
@@ -1232,10 +1244,15 @@ const PRIMARY = [
   { key:'grocery', label:'קניות',  color:'#cf9a45', icon:null },
 ];
 function primaryOf(it){ return it.category==='grocery' ? 'grocery' : 'task'; }
+/* תזכורת חוזרת ("להשקות עציצים כל שבוע") היא לא באמת משימה פתוחה — היא
+   חוזרת לנצח ולכן היא לא מסומנת אף פעם, ורק תופחת ברשימה. היא נשארת בלו"ז
+   ומקבלת את תיוג "תזכורות"; מי שרוצה לראות אותה מדליק את התיוג. */
+function isRepeatItem(it){ return !!(it && it.details && it.details.repeat); }
 /* התגיות של פריט = תגיות מפורשות + הקטגוריה הישנה שלו, אם היא קטגוריה חכמה */
 function allTagsOf(it){
   const t = tagsOf(it).slice();
   if (it.category && !PRIMARY_KEYS[it.category] && !t.includes(it.category)) t.unshift(it.category);
+  if (isRepeatItem(it) && !t.includes(REMINDER_KEY)) t.unshift(REMINDER_KEY);
   return t;
 }
 const isSmartCat = (c) => !PRIMARY_KEYS[c.key];
@@ -2182,6 +2199,14 @@ function CalendarView({ items, calEvents, calOwners, onCalOwner, hiddenEvents, o
   );
 }
 
+/* תיוג דלוק במסילה לובש את הצבע של התיוג עצמו — בדיוק כמו הצ'יפ שעל השורה
+   (.tchip). קודם כל התיוגים נצבעו באותו ירוק, ואז "רפואה" בצד ימין לא נראה
+   כמו "רפואה" שעל הכרטיס. */
+function railOn(color){
+  if(!color) return null;
+  return { background:hexA(color,0.15), color:color, borderColor:hexA(color,0.45) };
+}
+
 /* ============ מסילת התיוגים ============
    בסגנון Google Keep: רשימה אנכית בקצה הפנימי, ולא עוד שורת צ'יפים למעלה
    שנראית בדיוק כמו הלשוניות הראשיות. כמה תיוגים יכולים להידלק יחד. */
@@ -2194,7 +2219,8 @@ function TagRail({ cats, chips, onToggle, onClear, count, onEdit }){
       </h4>
       {PEOPLE_FILTERS.map(([k, mk]) => { const m = memberOf(mk); const on = chips.includes(k);
         return (
-          <button key={k} className={'rail-b'+(on?' on':'')} onClick={()=>onToggle(k)}>
+          <button key={k} className={'rail-b'+(on?' on':'')} onClick={()=>onToggle(k)}
+            style={on ? railOn(m.color) : null}>
             <span className="ri"><Avatar who={mk} size={18} /></span>
             <span className="nm">{m.name}</span>
             <span className="cnt">{count(k)}</span>
@@ -2203,7 +2229,8 @@ function TagRail({ cats, chips, onToggle, onClear, count, onEdit }){
       <div className="sep"></div>
       {cats.map(c => { const on = chips.includes(c.key);
         return (
-          <button key={c.key} className={'rail-b'+(on?' on':'')} onClick={()=>onToggle(c.key)}>
+          <button key={c.key} className={'rail-b'+(on?' on':'')} onClick={()=>onToggle(c.key)}
+            style={on ? railOn(c.color) : null}>
             <span className="ri" style={{ color:c.color }}><Icon path={c.icon} size={16} /></span>
             <span className="nm">{c.label}</span>
             <span className="cnt">{count(c.key)}</span>
@@ -2770,7 +2797,10 @@ function App(){
 
   /* משימות וקניות הן סננים ראשיים ולא ניתנות למחיקה — תמיד מוחזרות לרשימה */
   const saveCategories = useCallback(async (next) => {
-    const keep = DEFAULT_CATS.filter(d => PRIMARY_KEYS[d.key] && !next.find(c=>c.key===d.key));
+    /* "תזכורות" מוגן כמו משימות/קניות: בלעדיו אין שום דרך להגיע לתזכורות
+       החוזרות שהוצאו מרשימת המשימות. */
+    const keep = DEFAULT_CATS.filter(d => (PRIMARY_KEYS[d.key] || d.key===REMINDER_KEY)
+      && !next.find(c=>c.key===d.key));
     const ord = orderCats(next.concat(keep));
     /* תגית שנמחקה חייבת להיעלם משלושה מקומות, אחרת היא חוזרת מעצמה:
        הרשימה המקומית, טבלת התגיות המשותפת (שממנה היא נטענת מחדש בכל
@@ -3023,7 +3053,9 @@ function App(){
     const all = itemsRef.current;
     const it = all.find(i => i.id===id); if(!it) return;
     /* אותה רשימה נראית שמוצגת על המסך, בלי הפריט הנגרר */
-    const colList = all.filter(i => primaryOf(i)==='task' && i.id!==id && matchesChips(i, chipsRef.current))
+    const showRep = chipsRef.current.includes(REMINDER_KEY);
+    const colList = all.filter(i => primaryOf(i)==='task' && i.id!==id
+      && (showRep || !isRepeatItem(i)) && matchesChips(i, chipsRef.current))
       .sort(byListOrder);
     const before = colList[index-1], after = colList[index];
     let newSort;
@@ -3043,8 +3075,12 @@ function App(){
   const isGrocery = view==='grocery';
   const activeCat = catMap[isGrocery ? 'grocery' : 'task'];
 
-  /* משימות = כל מה שאינו קנייה, ואז סינון לפי התגיות/האנשים שנבחרו */
-  const boardItems = items.filter(i => primaryOf(i)==='task' && matchesChips(i, chips));
+  /* משימות = כל מה שאינו קנייה, ואז סינון לפי התגיות/האנשים שנבחרו.
+     תזכורות חוזרות מוסתרות כברירת מחדל — הן חיות בלו"ז, ומופיעות כאן רק
+     כשמדליקים במפורש את תיוג "תזכורות". */
+  const showRepeat = chips.includes(REMINDER_KEY);
+  const boardItems = items.filter(i => primaryOf(i)==='task'
+    && (showRepeat || !isRepeatItem(i)) && matchesChips(i, chips));
   /* רשימה אחת: פתוחות למעלה לפי הסדר, שבוצעו יורדות לתחתית */
   let taskList = boardItems.slice().sort(byListOrder);
 
@@ -3054,14 +3090,15 @@ function App(){
   const groceryItems = items.filter(i => i.category==='grocery');
   const draggedItem = drag ? items.find(i=>i.id===drag.id) : null;
 
-  const openCount = items.filter(i => !i.done && primaryOf(i)==='task').length;
+  /* המונים סופרים בדיוק את מה שרואים — תזכורת חוזרת אינה משימה פתוחה */
+  const openCount = items.filter(i => !i.done && primaryOf(i)==='task' && !isRepeatItem(i)).length;
   const doneToday = items.filter(i => i.done && isToday(new Date(i.updated_at || i.created_at))).length;
   const schedCount = items.filter(i => i.due_at && !i.done && !hiddenFromSchedule(i)
     && new Date(i.due_at) >= startOfToday()).length;
   const primaryCount = (k) => k==='grocery'
     ? items.filter(i => i.category==='grocery' && !i.done).length
     : k==='sched' ? schedCount
-    : items.filter(i => primaryOf(i)==='task').length;
+    : items.filter(i => primaryOf(i)==='task' && !isRepeatItem(i)).length;
   const chipCount = (c) => items.filter(i => primaryOf(i)==='task' && matchesChip(i, c)).length;
   const smartCats = allCats.filter(isSmartCat);
 
@@ -3353,7 +3390,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
      עורכים את ה-JSX ולא מריצים את הבנייה מחדש, החתימה לא תתאים והאפליקציה
      תתרגם בעצמה בזמן ריצה — כלומר עריכה ישירה תמיד עובדת, רק לאט יותר.
      נבנה ע"י scripts/build-compiled.ps1 (ראו HANDOFF.md). -->
-<script type="text/plain" id="app-compiled" data-sig="1jtrn3p.180092">
+<script type="text/plain" id="app-compiled" data-sig="38jy12.182139">
 const {
   useState,
   useEffect,
@@ -3372,8 +3409,12 @@ const IC = {
   finance: '<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/>',
   grocery: '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
   task: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
-  tag: '<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.8 8.8a2 2 0 0 0 2.8 0l6.4-6.4a2 2 0 0 0 0-2.8Z"/><circle cx="7.5" cy="7.5" r="1.3"/>'
+  tag: '<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.8 8.8a2 2 0 0 0 2.8 0l6.4-6.4a2 2 0 0 0 0-2.8Z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+  reminder: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'
 };
+/* 'reminder' הוא תיוג-מערכת: הוא נדבק לבד לכל תזכורת חוזרת ואי אפשר למחוק
+   אותו, כי הוא הדרך היחידה לראות את התזכורות שהוצאו מרשימת המשימות. */
+const REMINDER_KEY = 'reminder';
 const DEFAULT_CATS = [{
   key: 'task',
   label: 'משימות',
@@ -3384,6 +3425,11 @@ const DEFAULT_CATS = [{
   label: 'קניות',
   color: '#e0a53a',
   icon: IC.grocery
+}, {
+  key: 'reminder',
+  label: 'תזכורות',
+  color: '#d99a3c',
+  icon: IC.reminder
 }, {
   key: 'family',
   label: 'בני משפחה',
@@ -3422,15 +3468,24 @@ function loadCats() {
     const raw = localStorage.getItem(CATS_LS);
     if (raw) {
       const arr = JSON.parse(raw);
-      if (Array.isArray(arr) && arr.length) return orderCats(arr.map(c => ({
+      if (Array.isArray(arr) && arr.length) return orderCats(withReminderCat(arr.map(c => ({
         icon: IC.tag,
         ...c
-      })));
+      }))));
     }
   } catch (e) {}
   return orderCats(DEFAULT_CATS.map(c => ({
     ...c
   })));
+}
+/* מי שכבר השתמש בלוח שמר רשימת תגיות ישנה ב-localStorage, ולכן תוספת
+   ל-DEFAULT_CATS לבדה לא הייתה מגיעה אליו לעולם. */
+function withReminderCat(arr) {
+  if (arr.find(c => c.key === REMINDER_KEY)) return arr;
+  const def = DEFAULT_CATS.find(c => c.key === REMINDER_KEY);
+  return arr.concat([{
+    ...def
+  }]);
 }
 function saveCats(cats) {
   try {
@@ -3935,10 +3990,17 @@ const PRIMARY = [{
 function primaryOf(it) {
   return it.category === 'grocery' ? 'grocery' : 'task';
 }
+/* תזכורת חוזרת ("להשקות עציצים כל שבוע") היא לא באמת משימה פתוחה — היא
+   חוזרת לנצח ולכן היא לא מסומנת אף פעם, ורק תופחת ברשימה. היא נשארת בלו"ז
+   ומקבלת את תיוג "תזכורות"; מי שרוצה לראות אותה מדליק את התיוג. */
+function isRepeatItem(it) {
+  return !!(it && it.details && it.details.repeat);
+}
 /* התגיות של פריט = תגיות מפורשות + הקטגוריה הישנה שלו, אם היא קטגוריה חכמה */
 function allTagsOf(it) {
   const t = tagsOf(it).slice();
   if (it.category && !PRIMARY_KEYS[it.category] && !t.includes(it.category)) t.unshift(it.category);
+  if (isRepeatItem(it) && !t.includes(REMINDER_KEY)) t.unshift(REMINDER_KEY);
   return t;
 }
 const isSmartCat = c => !PRIMARY_KEYS[c.key];
@@ -5444,6 +5506,18 @@ function CalendarView({
   }), "עוד ", hiddenByOwner, " ", hiddenByOwner === 1 ? 'אירוע' : 'אירועים', " ביומנים כבויים — הדלק הכל"));
 }
 
+/* תיוג דלוק במסילה לובש את הצבע של התיוג עצמו — בדיוק כמו הצ'יפ שעל השורה
+   (.tchip). קודם כל התיוגים נצבעו באותו ירוק, ואז "רפואה" בצד ימין לא נראה
+   כמו "רפואה" שעל הכרטיס. */
+function railOn(color) {
+  if (!color) return null;
+  return {
+    background: hexA(color, 0.15),
+    color: color,
+    borderColor: hexA(color, 0.45)
+  };
+}
+
 /* ============ מסילת התיוגים ============
    בסגנון Google Keep: רשימה אנכית בקצה הפנימי, ולא עוד שורת צ'יפים למעלה
    שנראית בדיוק כמו הלשוניות הראשיות. כמה תיוגים יכולים להידלק יחד. */
@@ -5473,7 +5547,8 @@ function TagRail({
     return /*#__PURE__*/React.createElement("button", {
       key: k,
       className: 'rail-b' + (on ? ' on' : ''),
-      onClick: () => onToggle(k)
+      onClick: () => onToggle(k),
+      style: on ? railOn(m.color) : null
     }, /*#__PURE__*/React.createElement("span", {
       className: "ri"
     }, /*#__PURE__*/React.createElement(Avatar, {
@@ -5491,7 +5566,8 @@ function TagRail({
     return /*#__PURE__*/React.createElement("button", {
       key: c.key,
       className: 'rail-b' + (on ? ' on' : ''),
-      onClick: () => onToggle(c.key)
+      onClick: () => onToggle(c.key),
+      style: on ? railOn(c.color) : null
     }, /*#__PURE__*/React.createElement("span", {
       className: "ri",
       style: {
@@ -6429,7 +6505,9 @@ function App() {
 
   /* משימות וקניות הן סננים ראשיים ולא ניתנות למחיקה — תמיד מוחזרות לרשימה */
   const saveCategories = useCallback(async next => {
-    const keep = DEFAULT_CATS.filter(d => PRIMARY_KEYS[d.key] && !next.find(c => c.key === d.key));
+    /* "תזכורות" מוגן כמו משימות/קניות: בלעדיו אין שום דרך להגיע לתזכורות
+       החוזרות שהוצאו מרשימת המשימות. */
+    const keep = DEFAULT_CATS.filter(d => (PRIMARY_KEYS[d.key] || d.key === REMINDER_KEY) && !next.find(c => c.key === d.key));
     const ord = orderCats(next.concat(keep));
     /* תגית שנמחקה חייבת להיעלם משלושה מקומות, אחרת היא חוזרת מעצמה:
        הרשימה המקומית, טבלת התגיות המשותפת (שממנה היא נטענת מחדש בכל
@@ -6836,7 +6914,8 @@ function App() {
     const it = all.find(i => i.id === id);
     if (!it) return;
     /* אותה רשימה נראית שמוצגת על המסך, בלי הפריט הנגרר */
-    const colList = all.filter(i => primaryOf(i) === 'task' && i.id !== id && matchesChips(i, chipsRef.current)).sort(byListOrder);
+    const showRep = chipsRef.current.includes(REMINDER_KEY);
+    const colList = all.filter(i => primaryOf(i) === 'task' && i.id !== id && (showRep || !isRepeatItem(i)) && matchesChips(i, chipsRef.current)).sort(byListOrder);
     const before = colList[index - 1],
       after = colList[index];
     let newSort;
@@ -6867,8 +6946,11 @@ function App() {
   const isGrocery = view === 'grocery';
   const activeCat = catMap[isGrocery ? 'grocery' : 'task'];
 
-  /* משימות = כל מה שאינו קנייה, ואז סינון לפי התגיות/האנשים שנבחרו */
-  const boardItems = items.filter(i => primaryOf(i) === 'task' && matchesChips(i, chips));
+  /* משימות = כל מה שאינו קנייה, ואז סינון לפי התגיות/האנשים שנבחרו.
+     תזכורות חוזרות מוסתרות כברירת מחדל — הן חיות בלו"ז, ומופיעות כאן רק
+     כשמדליקים במפורש את תיוג "תזכורות". */
+  const showRepeat = chips.includes(REMINDER_KEY);
+  const boardItems = items.filter(i => primaryOf(i) === 'task' && (showRepeat || !isRepeatItem(i)) && matchesChips(i, chips));
   /* רשימה אחת: פתוחות למעלה לפי הסדר, שבוצעו יורדות לתחתית */
   let taskList = boardItems.slice().sort(byListOrder);
 
@@ -6878,10 +6960,12 @@ function App() {
   }
   const groceryItems = items.filter(i => i.category === 'grocery');
   const draggedItem = drag ? items.find(i => i.id === drag.id) : null;
-  const openCount = items.filter(i => !i.done && primaryOf(i) === 'task').length;
+
+  /* המונים סופרים בדיוק את מה שרואים — תזכורת חוזרת אינה משימה פתוחה */
+  const openCount = items.filter(i => !i.done && primaryOf(i) === 'task' && !isRepeatItem(i)).length;
   const doneToday = items.filter(i => i.done && isToday(new Date(i.updated_at || i.created_at))).length;
   const schedCount = items.filter(i => i.due_at && !i.done && !hiddenFromSchedule(i) && new Date(i.due_at) >= startOfToday()).length;
-  const primaryCount = k => k === 'grocery' ? items.filter(i => i.category === 'grocery' && !i.done).length : k === 'sched' ? schedCount : items.filter(i => primaryOf(i) === 'task').length;
+  const primaryCount = k => k === 'grocery' ? items.filter(i => i.category === 'grocery' && !i.done).length : k === 'sched' ? schedCount : items.filter(i => primaryOf(i) === 'task' && !isRepeatItem(i)).length;
   const chipCount = c => items.filter(i => primaryOf(i) === 'task' && matchesChip(i, c)).length;
   const smartCats = allCats.filter(isSmartCat);
   const whoOptions = [['tamar', 'tamar'], ['yair', 'yair'], ['shared', 'app']];
