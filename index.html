@@ -104,6 +104,27 @@
     --hdr:linear-gradient(120deg,#e6ebd7 0%,#dae0c5 100%);
     --hdr-word:#4d5a2c;
   }
+  /* "עמום" — בין רך לבינוני. עדיין בהיר (טקסט כהה על רקע בהיר), אבל צעד
+     ממשי לעבר ניגודיות גדולה יותר — בלי לקפוץ להיפוך הצבעים של המצב הכהה. */
+  :root[data-theme="dusk"]{
+    --page:#d7d2c1; --surface:#e6e1d1; --surface-2:#cec8b4; --text:#28251f; --muted:#615c4d; --muted-2:#7d7862;
+    --line:#c3bda8; --line-soft:#cec8b4; --line-strong:#b0a98e;
+    --tile-bg:#cec8b4; --tile-ic:#556230;
+    --brand:#8a9a5b; --brand-2:#7d8c50; --brand-deep:#48532a; --brand-ink:#333d1c;
+    --tint:#d7ddc0; --tint-2:#c8d0ac;
+    --primary:#48532a; --primary-tx:#f7f9ef;
+    --ring:rgba(138,154,91,.24);
+    --shadow:0 1px 2px rgba(20,18,14,.09);
+    --shadow-hover:0 2px 6px rgba(20,18,14,.14),0 10px 24px rgba(20,18,14,.17);
+    --col-bg:#cec8b4;
+    --todo-bg:#d2d6dc; --todo-tx:#454e5e; --todo-dot:#78849a;
+    --doing-bg:#e0d0a9; --doing-tx:#6d4f18; --doing-dot:#b8863a;
+    --done-bg:#c9d0b3; --done-tx:#3f4d22; --done-dot:#71824a;
+    --done-card:#dbdcc9; --flag-tx:#252d10;
+    --danger:#a8543f; --danger-bg:#e6d2c9;
+    --hdr:linear-gradient(120deg,#d7ddc0 0%,#c8d0ac 100%);
+    --hdr-word:#3d4823;
+  }
   :root[data-theme="mid"]{
     --page:#2a2823; --surface:#33312b; --surface-2:#3a3830; --text:#eae7dd; --muted:#a5a094; --muted-2:#7d7a6f;
     --line:#403e35; --line-soft:#3a3830; --line-strong:#4d4a3f;
@@ -171,15 +192,21 @@
     background:var(--surface); padding:4px 10px; border-radius:999px; box-shadow:0 1px 2px rgba(0,0,0,.06)}
   .live .dot{width:7px; height:7px; border-radius:50%; background:var(--done-dot)}
   .live .dot.off{background:var(--doing-dot)}
-  .head-right{margin-inline-start:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
-  .stat{display:flex; align-items:center; gap:5px; background:var(--surface); border-radius:9px; padding:5px 10px;
-    font-size:12px; color:var(--muted); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.05)}
-  .stat b{font-size:14px; font-weight:800; color:var(--brand-deep)}
+  .head-right{margin-inline-start:auto; display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+  .stat{display:flex; align-items:center; gap:4px; background:var(--surface); border-radius:9px; padding:5px 8px;
+    font-size:11.5px; color:var(--muted); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.05); white-space:nowrap}
+  .stat b{font-size:13.5px; font-weight:800; color:var(--brand-deep)}
   /* theme switch */
   .theme{display:flex; background:var(--surface); border-radius:10px; padding:3px; gap:2px; box-shadow:0 1px 2px rgba(0,0,0,.06)}
-  .theme button{border:none; background:transparent; color:var(--muted); width:30px; height:28px; border-radius:7px;
+  .theme button{border:none; background:transparent; color:var(--muted); width:27px; height:27px; border-radius:7px;
     cursor:pointer; display:flex; align-items:center; justify-content:center}
   .theme button.on{background:var(--tint); color:var(--brand-deep)}
+  @media (max-width:520px){
+    .head-right{gap:5px}
+    .stat{padding:4px 7px; font-size:11px}
+    .theme{padding:2px; gap:1px}
+    .theme button{width:25px; height:25px}
+  }
 
   /* ---------- Filters ---------- */
   .filters{display:flex; flex-wrap:wrap; gap:7px; padding:14px 16px 4px; align-items:center}
@@ -921,8 +948,12 @@
   }
   @media (max-width:520px){
     .brand .logo-img{height:78px}
-    .add-opts{gap:6px}
-    .who{width:34px; height:34px}
+    .add-opts{gap:3px}
+    .who{width:26px; height:26px}
+    .date-toggle{width:32px; height:32px; margin-inline-start:0}
+    .aitog{padding:6px 7px; font-size:11.5px}
+    .addtag-b{padding:6px 7px; font-size:12px}
+    .addbar select{padding:6px 6px; font-size:12px}
     .add-main textarea{min-height:50px}
   }
 </style>
@@ -1066,6 +1097,7 @@ const aiReady = (c) => !!(c && c.url && c.token);
 const THEMES = [
   { key:'light', label:'בהיר',   icon:'sun' },
   { key:'soft',  label:'רך',     icon:'sunLow' },
+  { key:'dusk',  label:'עמום',   icon:'dusk' },
   { key:'mid',   label:'בינוני', icon:'half' },
   { key:'dark',  label:'כהה',    icon:'moon' },
 ];
@@ -1266,9 +1298,9 @@ const PRIMARY_KEYS = { task:1, grocery:1 };
    מספיק כדי לא להתנגש עם המרווה של הלוח. הם עצמאיים מצבעי הקטגוריות
    שהמשתמש ערך, כדי שהלשוניות יישארו עקביות בכל מכשיר. */
 const PRIMARY = [
-  { key:'sched',   label:'לו"ז',   color:'#6d8fb8', icon:null },
   { key:'task',    label:'משימות', color:'#8a9a5b', icon:null },
   { key:'grocery', label:'קניות',  color:'#cf9a45', icon:null },
+  { key:'sched',   label:'לו"ז',   color:'#6d8fb8', icon:null },
 ];
 function primaryOf(it){ return it.category==='grocery' ? 'grocery' : 'task'; }
 /* תזכורת חוזרת ("להשקות עציצים כל שבוע") היא לא באמת משימה פתוחה — היא
@@ -1454,6 +1486,7 @@ const I = {
   x:'<path d="M18 6 6 18"/><path d="M6 6l12 12"/>',
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.9 4.9 1.4 1.4"/><path d="m17.7 17.7 1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.3 17.7-1.4 1.4"/><path d="m19.1 4.9-1.4 1.4"/>',
   sunLow:'<circle cx="12" cy="12" r="4"/><path d="M12 3.5V5"/><path d="M12 19v1.5"/><path d="M3.5 12H5"/><path d="M19 12h1.5"/>',
+  dusk:'<circle cx="12" cy="12" r="9"/><path d="M12 3A9 9 0 0 1 18.36 18.36Z" fill="currentColor" stroke="none"/>',
   half:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/>',
   moon:'<path d="M12 3a6.4 6.4 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
   gear:'<path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>',
@@ -3302,7 +3335,7 @@ function App(){
           <span className="live"><span className={'dot'+(live?'':' off')}></span>{live?'בזמן אמת':'מתחבר…'}</span>
           <div className="head-right">
             <span className="stat"><b>{openCount}</b> פתוחות</span>
-            <span className="stat"><b>{doneToday}</b> הושלמו היום</span>
+            <span className="stat"><b>{doneToday}</b> הושלמו</span>
             <button className={'ibtn'+(pushPrefs.endpoint?' on':'')} title="התראות" onClick={()=>setPushOpen(true)}>
               <Icon path={I.bell} size={17} />
             </button>
@@ -3522,7 +3555,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
      עורכים את ה-JSX ולא מריצים את הבנייה מחדש, החתימה לא תתאים והאפליקציה
      תתרגם בעצמה בזמן ריצה — כלומר עריכה ישירה תמיד עובדת, רק לאט יותר.
      נבנה ע"י scripts/build-compiled.ps1 (ראו HANDOFF.md). -->
-<script type="text/plain" id="app-compiled" data-sig="1pb26wt.188151">
+<script type="text/plain" id="app-compiled" data-sig="roasu2.188310">
 const {
   useState,
   useEffect,
@@ -3764,6 +3797,10 @@ const THEMES = [{
   key: 'soft',
   label: '׳¨׳',
   icon: 'sunLow'
+}, {
+  key: 'dusk',
+  label: '׳¢׳׳•׳',
+  icon: 'dusk'
 }, {
   key: 'mid',
   label: '׳‘׳™׳ ׳•׳ ׳™',
@@ -4138,11 +4175,6 @@ const PRIMARY_KEYS = {
    ׳׳¡׳₪׳™׳§ ׳›׳“׳™ ׳׳ ׳׳”׳×׳ ׳’׳© ׳¢׳ ׳”׳׳¨׳•׳•׳” ׳©׳ ׳”׳׳•׳—. ׳”׳ ׳¢׳¦׳׳׳™׳™׳ ׳׳¦׳‘׳¢׳™ ׳”׳§׳˜׳’׳•׳¨׳™׳•׳×
    ׳©׳”׳׳©׳×׳׳© ׳¢׳¨׳, ׳›׳“׳™ ׳©׳”׳׳©׳•׳ ׳™׳•׳× ׳™׳™׳©׳׳¨׳• ׳¢׳§׳‘׳™׳•׳× ׳‘׳›׳ ׳׳›׳©׳™׳¨. */
 const PRIMARY = [{
-  key: 'sched',
-  label: '׳׳•"׳–',
-  color: '#6d8fb8',
-  icon: null
-}, {
   key: 'task',
   label: '׳׳©׳™׳׳•׳×',
   color: '#8a9a5b',
@@ -4151,6 +4183,11 @@ const PRIMARY = [{
   key: 'grocery',
   label: '׳§׳ ׳™׳•׳×',
   color: '#cf9a45',
+  icon: null
+}, {
+  key: 'sched',
+  label: '׳׳•"׳–',
+  color: '#6d8fb8',
   icon: null
 }];
 function primaryOf(it) {
@@ -4463,6 +4500,7 @@ const I = {
   x: '<path d="M18 6 6 18"/><path d="M6 6l12 12"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.9 4.9 1.4 1.4"/><path d="m17.7 17.7 1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.3 17.7-1.4 1.4"/><path d="m19.1 4.9-1.4 1.4"/>',
   sunLow: '<circle cx="12" cy="12" r="4"/><path d="M12 3.5V5"/><path d="M12 19v1.5"/><path d="M3.5 12H5"/><path d="M19 12h1.5"/>',
+  dusk: '<circle cx="12" cy="12" r="9"/><path d="M12 3A9 9 0 0 1 18.36 18.36Z" fill="currentColor" stroke="none"/>',
   half: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/>',
   moon: '<path d="M12 3a6.4 6.4 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
   gear: '<path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>',
@@ -7375,7 +7413,7 @@ function App() {
     className: "stat"
   }, /*#__PURE__*/React.createElement("b", null, openCount), " ׳₪׳×׳•׳—׳•׳×"), /*#__PURE__*/React.createElement("span", {
     className: "stat"
-  }, /*#__PURE__*/React.createElement("b", null, doneToday), " ׳”׳•׳©׳׳׳• ׳”׳™׳•׳"), /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement("b", null, doneToday), " ׳”׳•׳©׳׳׳•"), /*#__PURE__*/React.createElement("button", {
     className: 'ibtn' + (pushPrefs.endpoint ? ' on' : ''),
     title: "׳”׳×׳¨׳׳•׳×",
     onClick: () => setPushOpen(true)
