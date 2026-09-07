@@ -602,7 +602,7 @@
   /* כמו בפתקים: גרירה מכל מקום בשורה, הרמה קלה בריחוף והצללה מודגשת בגרירה */
   .trow{position:relative; display:flex; align-items:flex-start; gap:11px; background:var(--surface);
     border:1px solid var(--line); border-radius:16px; padding:14px 15px; box-shadow:var(--shadow);
-    cursor:grab; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; touch-action:pan-y;
+    cursor:grab; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; touch-action:none;
     transition:box-shadow .18s ease, transform .18s ease, border-color .16s ease, background .16s ease}
   /* הצל מופיע בריחוף ולא במנוחה — הוא סימן שאפשר לגעת, לא קישוט קבוע */
   .trow:hover{border-color:var(--line-strong); transform:translateY(-2px); box-shadow:var(--shadow-hover)}
@@ -3120,10 +3120,22 @@ function App(){
   };
 
   /* מגע בשורה יכול להיות שלושה דברים שונים, וההכרעה נופלת לפי הכיוון:
-       אנכי  -> גלילה רגילה של העמוד
+       אנכי  -> גלילה
        אופקי -> החלקה: ימינה = מחיקה, שמאלה = קידום סטטוס
        החזקה במקום 350ms -> גרירה לשינוי סדר
-     בעכבר אין החלקה — שם תזוזה של 6px כבר מתחילה גרירה. */
+     בעכבר אין החלקה — שם תזוזה של 6px כבר מתחילה גרירה.
+
+     ⚠️ הגלילה האנכית מבוצעת כאן ידנית (scrollBy), לא ע"י הדפדפן. הסיבה:
+     touch-action על .trow הוא none (ראו CSS) כדי שגרירה תוכל להתחיל בלי
+     שהדפדפן "יחליט" כבר בתחילת המגע שזו גלילה — ב-iOS ההחלטה ננעלת מרגע
+     התחלת המגע ולא ניתן לבטל אותה מאוחר יותר (למשל כשמוסיפים touch-action:
+     none ל-body רק כשהגרירה בפועל מתחילה). התוצאה של ההחלטה הנעולה מוקדם
+     מדי: אם המשתמש מזיז אצבע מעט כלפי מעלה תוך כדי ההחזקה, ה-iOS כבר
+     "תפס" את המגע כגלילה באופן שקט — הגרירה עדיין מתחילה ב-JS, אבל
+     הרשימה כבר זזה מתחתיה, וכשמשחררים היא "קופצת" למקום אחר מהמיועד
+     (בעיקר בגרירה כלפי מעלה, כי זו בדיוק התנועה שגם מגלגלת את הרשימה
+     כלפי מטה). עם touch-action:none הדפדפן לא מעורב בכלל, ואנחנו קובעים
+     הכל — אין תחרות בין שתי מערכות שמזיזות את אותה רשימה בו-זמנית. */
   const SWIPE_GO = 64;
   const onRowDown = useCallback((e, it) => {
     if (e.button!=null && e.button!==0) return;
@@ -3132,7 +3144,7 @@ function App(){
     if (!touch) e.preventDefault();
     const rowEl = e.currentTarget;
     const sx=e.clientX, sy=e.clientY;
-    let started=false, timer=null, swiping=null, dx=0;
+    let started=false, timer=null, mode=null, dx=0, lastY=e.clientY;
 
     const paint = () => {
       if (!rowEl) return;
@@ -3160,14 +3172,15 @@ function App(){
       const ddx = ev.clientX-sx, ddy = ev.clientY-sy;
       const dist = Math.hypot(ddx, ddy);
       if (touch){
-        if (swiping===null && dist > 12) swiping = Math.abs(ddx) > Math.abs(ddy) * 1.4;
-        if (swiping){ clearTimeout(timer); dx = ddx; paint(); return; }
-        if (dist > 10) cleanup();   /* זו גלילה — מבטלים */
+        if (mode==='scroll'){ const dy = ev.clientY-lastY; if (dy) window.scrollBy(0,-dy); lastY = ev.clientY; return; }
+        if (mode===null && dist > 12) mode = Math.abs(ddx) > Math.abs(ddy) * 1.4 ? 'swipe' : 'scroll';
+        if (mode === 'swipe'){ dx = ddx; paint(); return; }
+        if (mode === 'scroll'){ clearTimeout(timer); const dy = ev.clientY-lastY; if (dy) window.scrollBy(0,-dy); lastY = ev.clientY; }
       }
       else if (dist > 6) begin(ev.clientX, ev.clientY);
     };
     const preUp = () => {
-      if (swiping){
+      if (mode === 'swipe'){
         const go = Math.abs(dx) >= SWIPE_GO, right = dx > 0;
         unpaint();
         if (go){ right ? swipeRef.current.del(it) : swipeRef.current.next(it); }
@@ -3555,7 +3568,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
      עורכים את ה-JSX ולא מריצים את הבנייה מחדש, החתימה לא תתאים והאפליקציה
      תתרגם בעצמה בזמן ריצה — כלומר עריכה ישירה תמיד עובדת, רק לאט יותר.
      נבנה ע"י scripts/build-compiled.ps1 (ראו HANDOFF.md). -->
-<script type="text/plain" id="app-compiled" data-sig="roasu2.188310">
+<script type="text/plain" id="app-compiled" data-sig="2yp99f.189306">
 const {
   useState,
   useEffect,
@@ -7119,10 +7132,21 @@ function App() {
   };
 
   /* ׳׳’׳¢ ׳‘׳©׳•׳¨׳” ׳™׳›׳•׳ ׳׳”׳™׳•׳× ׳©׳׳•׳©׳” ׳“׳‘׳¨׳™׳ ׳©׳•׳ ׳™׳, ׳•׳”׳”׳›׳¨׳¢׳” ׳ ׳•׳₪׳׳× ׳׳₪׳™ ׳”׳›׳™׳•׳•׳:
-       ׳׳ ׳›׳™  -> ׳’׳׳™׳׳” ׳¨׳’׳™׳׳” ׳©׳ ׳”׳¢׳׳•׳“
+       ׳׳ ׳›׳™  -> ׳’׳׳™׳׳”
        ׳׳•׳₪׳§׳™ -> ׳”׳—׳׳§׳”: ׳™׳׳™׳ ׳” = ׳׳—׳™׳§׳”, ׳©׳׳׳׳” = ׳§׳™׳“׳•׳ ׳¡׳˜׳˜׳•׳¡
        ׳”׳—׳–׳§׳” ׳‘׳׳§׳•׳ 350ms -> ׳’׳¨׳™׳¨׳” ׳׳©׳™׳ ׳•׳™ ׳¡׳“׳¨
-     ׳‘׳¢׳›׳‘׳¨ ׳׳™׳ ׳”׳—׳׳§׳” ג€” ׳©׳ ׳×׳–׳•׳–׳” ׳©׳ 6px ׳›׳‘׳¨ ׳׳×׳—׳™׳׳” ׳’׳¨׳™׳¨׳”. */
+     ׳‘׳¢׳›׳‘׳¨ ׳׳™׳ ׳”׳—׳׳§׳” ג€” ׳©׳ ׳×׳–׳•׳–׳” ׳©׳ 6px ׳›׳‘׳¨ ׳׳×׳—׳™׳׳” ׳’׳¨׳™׳¨׳”.
+      ג ן¸ ׳”׳’׳׳™׳׳” ׳”׳׳ ׳›׳™׳× ׳׳‘׳•׳¦׳¢׳× ׳›׳׳ ׳™׳“׳ ׳™׳× (scrollBy), ׳׳ ׳¢"׳™ ׳”׳“׳₪׳“׳₪׳. ׳”׳¡׳™׳‘׳”:
+     touch-action ׳¢׳ .trow ׳”׳•׳ none (׳¨׳׳• CSS) ׳›׳“׳™ ׳©׳’׳¨׳™׳¨׳” ׳×׳•׳›׳ ׳׳”׳×׳—׳™׳ ׳‘׳׳™
+     ׳©׳”׳“׳₪׳“׳₪׳ "׳™׳—׳׳™׳˜" ׳›׳‘׳¨ ׳‘׳×׳—׳™׳׳× ׳”׳׳’׳¢ ׳©׳–׳• ׳’׳׳™׳׳” ג€” ׳‘-iOS ׳”׳”׳—׳׳˜׳” ׳ ׳ ׳¢׳׳× ׳׳¨׳’׳¢
+     ׳”׳×׳—׳׳× ׳”׳׳’׳¢ ׳•׳׳ ׳ ׳™׳×׳ ׳׳‘׳˜׳ ׳׳•׳×׳” ׳׳׳•׳—׳¨ ׳™׳•׳×׳¨ (׳׳׳©׳ ׳›׳©׳׳•׳¡׳™׳₪׳™׳ touch-action:
+     none ׳-body ׳¨׳§ ׳›׳©׳”׳’׳¨׳™׳¨׳” ׳‘׳₪׳•׳¢׳ ׳׳×׳—׳™׳׳”). ׳”׳×׳•׳¦׳׳” ׳©׳ ׳”׳”׳—׳׳˜׳” ׳”׳ ׳¢׳•׳׳” ׳׳•׳§׳“׳
+     ׳׳“׳™: ׳׳ ׳”׳׳©׳×׳׳© ׳׳–׳™׳– ׳׳¦׳‘׳¢ ׳׳¢׳˜ ׳›׳׳₪׳™ ׳׳¢׳׳” ׳×׳•׳ ׳›׳“׳™ ׳”׳”׳—׳–׳§׳”, ׳”-iOS ׳›׳‘׳¨
+     "׳×׳₪׳¡" ׳׳× ׳”׳׳’׳¢ ׳›׳’׳׳™׳׳” ׳‘׳׳•׳₪׳ ׳©׳§׳˜ ג€” ׳”׳’׳¨׳™׳¨׳” ׳¢׳“׳™׳™׳ ׳׳×׳—׳™׳׳” ׳‘-JS, ׳׳‘׳
+     ׳”׳¨׳©׳™׳׳” ׳›׳‘׳¨ ׳–׳–׳” ׳׳×׳—׳×׳™׳”, ׳•׳›׳©׳׳©׳—׳¨׳¨׳™׳ ׳”׳™׳ "׳§׳•׳₪׳¦׳×" ׳׳׳§׳•׳ ׳׳—׳¨ ׳׳”׳׳™׳•׳¢׳“
+     (׳‘׳¢׳™׳§׳¨ ׳‘׳’׳¨׳™׳¨׳” ׳›׳׳₪׳™ ׳׳¢׳׳”, ׳›׳™ ׳–׳• ׳‘׳“׳™׳•׳§ ׳”׳×׳ ׳•׳¢׳” ׳©׳’׳ ׳׳’׳׳’׳׳× ׳׳× ׳”׳¨׳©׳™׳׳”
+     ׳›׳׳₪׳™ ׳׳˜׳”). ׳¢׳ touch-action:none ׳”׳“׳₪׳“׳₪׳ ׳׳ ׳׳¢׳•׳¨׳‘ ׳‘׳›׳׳, ׳•׳׳ ׳—׳ ׳• ׳§׳•׳‘׳¢׳™׳
+     ׳”׳›׳ ג€” ׳׳™׳ ׳×׳—׳¨׳•׳× ׳‘׳™׳ ׳©׳×׳™ ׳׳¢׳¨׳›׳•׳× ׳©׳׳–׳™׳–׳•׳× ׳׳× ׳׳•׳×׳” ׳¨׳©׳™׳׳” ׳‘׳•-׳–׳׳ ׳™׳×. */
   const SWIPE_GO = 64;
   const onRowDown = useCallback((e, it) => {
     if (e.button != null && e.button !== 0) return;
@@ -7134,8 +7158,9 @@ function App() {
       sy = e.clientY;
     let started = false,
       timer = null,
-      swiping = null,
-      dx = 0;
+      mode = null,
+      dx = 0,
+      lastY = e.clientY;
     const paint = () => {
       if (!rowEl) return;
       rowEl.style.transition = 'none';
@@ -7172,18 +7197,28 @@ function App() {
         ddy = ev.clientY - sy;
       const dist = Math.hypot(ddx, ddy);
       if (touch) {
-        if (swiping === null && dist > 12) swiping = Math.abs(ddx) > Math.abs(ddy) * 1.4;
-        if (swiping) {
-          clearTimeout(timer);
+        if (mode === 'scroll') {
+          const dy = ev.clientY - lastY;
+          if (dy) window.scrollBy(0, -dy);
+          lastY = ev.clientY;
+          return;
+        }
+        if (mode === null && dist > 12) mode = Math.abs(ddx) > Math.abs(ddy) * 1.4 ? 'swipe' : 'scroll';
+        if (mode === 'swipe') {
           dx = ddx;
           paint();
           return;
         }
-        if (dist > 10) cleanup(); /* ׳–׳• ׳’׳׳™׳׳” ג€” ׳׳‘׳˜׳׳™׳ */
+        if (mode === 'scroll') {
+          clearTimeout(timer);
+          const dy = ev.clientY - lastY;
+          if (dy) window.scrollBy(0, -dy);
+          lastY = ev.clientY;
+        }
       } else if (dist > 6) begin(ev.clientX, ev.clientY);
     };
     const preUp = () => {
-      if (swiping) {
+      if (mode === 'swipe') {
         const go = Math.abs(dx) >= SWIPE_GO,
           right = dx > 0;
         unpaint();
