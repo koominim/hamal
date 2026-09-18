@@ -1,0 +1,9 @@
+# allowlist: only the files the public app actually needs go to GitHub.
+# everything else (secrets, internal notes, the bot/ subrepo) stays local.
+/*
+!/index.html
+!/manifest.json
+!/sw.js
+!/icon-192.png
+!/icon-512.png
+!/.gitignore
