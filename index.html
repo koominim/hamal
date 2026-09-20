@@ -2252,7 +2252,19 @@ function AISetup({ cfg, onClose, onSave }){
   const [url, setUrl] = useState(cfg.url || '');
   const [token, setToken] = useState(cfg.token || '');
   const [test, setTest] = useState('');
+  const [code, setCode] = useState('');
   const clean = url.trim().replace(/\/+$/, '');
+  /* הקוד מגיע מהבוט בוואטסאפ ("קוד לאפליקציה") — מדביקים, והכתובת והטוקן נמלאים לבד */
+  const pasteCode = (v) => {
+    setCode(v);
+    const m = String(v).trim().match(/^hamal-connect:([A-Za-z0-9+\/=_-]+)$/);
+    if (!m) return;
+    try{
+      const j = JSON.parse(atob(m[1]));
+      if (j && j.u && j.t){ setUrl(String(j.u)); setToken(String(j.t)); setTest('✔ הקוד נקלט — לחצו שמירה'); }
+      else setTest('✖ הקוד לא תקין');
+    }catch(e){ setTest('✖ הקוד לא תקין'); }
+  };
   const check = async () => {
     setTest('בודק…');
     try{
@@ -2279,6 +2291,9 @@ function AISetup({ cfg, onClose, onSave }){
             הבקשות נשלחות לבוט שלכם, ושם יושב מפתח Gemini — הוא לא מגיע לדפדפן.
             הכתובת והטוקן נשמרים במכשיר הזה בלבד.
           </p>
+          <label className="ailbl">קוד חיבור — שלחו לבוט בפרטי "קוד לאפליקציה" והדביקו כאן</label>
+          <input className="aiinp" value={code} onChange={e=>pasteCode(e.target.value)}
+            placeholder="hamal-connect:…" dir="ltr" autoComplete="off" />
           <label className="ailbl">כתובת הבוט</label>
           <input className="aiinp" value={url} onChange={e=>setUrl(e.target.value)}
             placeholder="https://xxx.up.railway.app" dir="ltr" />
@@ -3525,7 +3540,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
      עורכים את ה-JSX ולא מריצים את הבנייה מחדש, החתימה לא תתאים והאפליקציה
      תתרגם בעצמה בזמן ריצה — כלומר עריכה ישירה תמיד עובדת, רק לאט יותר.
      נבנה ע"י scripts/build-compiled.ps1 (ראו HANDOFF.md). -->
-<script type="text/plain" id="app-compiled" data-sig="18i26s4.187719">
+<script type="text/plain" id="app-compiled" data-sig="1bpagkx.188498">
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 const {
   useState,
@@ -5674,7 +5689,24 @@ function AISetup({
   const [url, setUrl] = useState(cfg.url || '');
   const [token, setToken] = useState(cfg.token || '');
   const [test, setTest] = useState('');
+  const [code, setCode] = useState('');
   const clean = url.trim().replace(/\/+$/, '');
+  /* ׳”׳§׳•׳“ ׳׳’׳™׳¢ ׳׳”׳‘׳•׳˜ ׳‘׳•׳•׳׳˜׳¡׳׳₪ ("׳§׳•׳“ ׳׳׳₪׳׳™׳§׳¦׳™׳”") ג€” ׳׳“׳‘׳™׳§׳™׳, ׳•׳”׳›׳×׳•׳‘׳× ׳•׳”׳˜׳•׳§׳ ׳ ׳׳׳׳™׳ ׳׳‘׳“ */
+  const pasteCode = v => {
+    setCode(v);
+    const m = String(v).trim().match(/^hamal-connect:([A-Za-z0-9+\/=_-]+)$/);
+    if (!m) return;
+    try {
+      const j = JSON.parse(atob(m[1]));
+      if (j && j.u && j.t) {
+        setUrl(String(j.u));
+        setToken(String(j.t));
+        setTest('ג” ׳”׳§׳•׳“ ׳ ׳§׳׳˜ ג€” ׳׳—׳¦׳• ׳©׳׳™׳¨׳”');
+      } else setTest('ג– ׳”׳§׳•׳“ ׳׳ ׳×׳§׳™׳');
+    } catch (e) {
+      setTest('ג– ׳”׳§׳•׳“ ׳׳ ׳×׳§׳™׳');
+    }
+  };
   const check = async () => {
     setTest('׳‘׳•׳“׳§ג€¦');
     try {
@@ -5716,6 +5748,15 @@ function AISetup({
   }, /*#__PURE__*/React.createElement("p", {
     className: "aihelp"
   }, "\u05D4\u05D1\u05E7\u05E9\u05D5\u05EA \u05E0\u05E9\u05DC\u05D7\u05D5\u05EA \u05DC\u05D1\u05D5\u05D8 \u05E9\u05DC\u05DB\u05DD, \u05D5\u05E9\u05DD \u05D9\u05D5\u05E9\u05D1 \u05DE\u05E4\u05EA\u05D7 Gemini \u2014 \u05D4\u05D5\u05D0 \u05DC\u05D0 \u05DE\u05D2\u05D9\u05E2 \u05DC\u05D3\u05E4\u05D3\u05E4\u05DF. \u05D4\u05DB\u05EA\u05D5\u05D1\u05EA \u05D5\u05D4\u05D8\u05D5\u05E7\u05DF \u05E0\u05E9\u05DE\u05E8\u05D9\u05DD \u05D1\u05DE\u05DB\u05E9\u05D9\u05E8 \u05D4\u05D6\u05D4 \u05D1\u05DC\u05D1\u05D3."), /*#__PURE__*/React.createElement("label", {
+    className: "ailbl"
+  }, "\u05E7\u05D5\u05D3 \u05D7\u05D9\u05D1\u05D5\u05E8 \u2014 \u05E9\u05DC\u05D7\u05D5 \u05DC\u05D1\u05D5\u05D8 \u05D1\u05E4\u05E8\u05D8\u05D9 \"\u05E7\u05D5\u05D3 \u05DC\u05D0\u05E4\u05DC\u05D9\u05E7\u05E6\u05D9\u05D4\" \u05D5\u05D4\u05D3\u05D1\u05D9\u05E7\u05D5 \u05DB\u05D0\u05DF"), /*#__PURE__*/React.createElement("input", {
+    className: "aiinp",
+    value: code,
+    onChange: e => pasteCode(e.target.value),
+    placeholder: "hamal-connect:\u2026",
+    dir: "ltr",
+    autoComplete: "off"
+  }), /*#__PURE__*/React.createElement("label", {
     className: "ailbl"
   }, "\u05DB\u05EA\u05D5\u05D1\u05EA \u05D4\u05D1\u05D5\u05D8"), /*#__PURE__*/React.createElement("input", {
     className: "aiinp",
