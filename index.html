@@ -897,21 +897,28 @@
     .chip{padding:9px 14px; font-size:14.5px}
     .chip .cnt{font-size:12px}
     .layout{padding:8px 12px 190px; gap:12px}
+    .layout.min-bar{padding-bottom:96px}
     .shop{border-radius:18px}
-    .shop-head{font-size:16px; padding:15px 16px}
-    .shop-body{padding:8px 10px 16px}
-    .shop-sec-h{font-size:13.5px; padding:12px 4px 7px}
-    .gitem{padding:12px 12px; gap:10px; border-radius:13px; margin-bottom:9px}
-    /* בנייד השם מקבל שורה שלמה והפקדים יורדים מתחתיו. שבע פקדים בשורה
-       אחת השאירו לשם 37 פיקסלים בלבד — "אבטיח" נשבר ל"אב/טי/ח" */
-    .gmain{flex-direction:column; align-items:stretch; gap:9px}
-    .gctl{margin-inline-start:0; justify-content:flex-end}
-    .gname{font-size:17px}
-    .gbox{width:28px; height:28px; border-radius:8px}
-    .ghandle{width:26px; margin:-12px -4px -12px -2px}
-    .qbtn{width:32px; height:32px}
-    .qn{min-width:26px; font-size:16px}
-    .gitem .ibtn{width:34px; height:34px}
+    .shop-head{font-size:16px; padding:12px 16px}
+    .shop-body{padding:4px 8px 12px}
+    .shop-sec-h{font-size:13px; padding:8px 4px 4px}
+    /* שורת מוצר רזה: הכל בשורה אחת. שם קצר ("חלב") נכנס בשורה אחת; שם ארוך
+       יורד לשתי שורות בתוך עמודת השם, במקום להוסיף שורת פקדים שלמה מתחתיו. */
+    .gitem{padding:5px 8px; gap:6px; border-radius:11px; margin-bottom:4px}
+    .gmain{flex-direction:row; align-items:center; gap:6px}
+    .gctl{margin-inline-start:auto; gap:3px}
+    .gname{font-size:15.5px; line-height:1.25}
+    .gbox{width:26px; height:26px; border-radius:8px}
+    .ghandle{width:18px; margin:-5px -3px -5px -2px}
+    .qbtn{width:30px; height:30px}
+    .qn{min-width:18px; font-size:15px}
+    .gitem .ibtn{width:30px; height:30px}
+    .gitem .av{width:20px!important; height:20px!important; font-size:9.5px}
+    /* שורת ההוספה בנייד במצב AI: רק שדה כתיבה וכפתור +. הבוררים הידניים
+       מיותרים — הבוט מחליט קנייה/משימה/למי. אם ה-AI לא מוגדר במכשיר,
+       השורה נשארת כדי שעדיין אפשר להגדיר אותו. */
+    .addbar.ai .add-opts{display:none}
+    .toast.min-bar{bottom:calc(84px + env(safe-area-inset-bottom))}
     .panel-head{font-size:15px; padding:14px 15px}
 
     /* רשימת המשימות — רזה, כדי שיותר משימות ייכנסו למסך בלי גלילה */
@@ -1075,7 +1082,8 @@ function loadAI(){
   try{
     const p = JSON.parse(localStorage.getItem(AI_LS) || '{}') || {};
     const url = String(p.url || '').trim().replace(/\/+$/, '');
-    return { url, token: String(p.token || '').trim(), on: p.on !== false };
+    /* מצב AI תמיד נפתח דלוק — גם אם בעבר כיבו אותו במכשיר הזה */
+    return { url, token: String(p.token || '').trim(), on: true };
   }catch(e){ return { url:'', token:'', on:true }; }
 }
 function saveAI(v){ try{ localStorage.setItem(AI_LS, JSON.stringify(v)); }catch(e){} }
@@ -3328,7 +3336,7 @@ function App(){
       </div>
       </div>
 
-      <div className={'layout'+(isTasks?'':' is-wide')}>
+      <div className={'layout'+(isTasks?'':' is-wide')+(aiOn?' min-bar':'')}>
         {/* לשונית המשימות בלבד: מסילת התיוגים בקצה הפנימי */}
         {isTasks && (
           <TagRail cats={smartCats} chips={chips} onToggle={toggleChip}
@@ -3380,7 +3388,7 @@ function App(){
       </div>
 
       {notice && (
-        <div className="toast" onClick={()=>setNotice('')}>
+        <div className={'toast'+(aiOn?' min-bar':'')} onClick={()=>setNotice('')}>
           <Icon path={I.bell} size={15} /> {notice}
         </div>
       )}
@@ -3482,11 +3490,11 @@ function App(){
             <textarea value={text} onChange={e=>setText(e.target.value)} rows={1} disabled={aiBusy}
               onKeyDown={e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); (aiOn?askAI:add)(); } }}
               placeholder={aiOn
-                ? (aiBusy ? 'חושב…' : 'כתבו בשפה חופשית — "תזכיר לי מחר ב-8 לקחת תרופה", "לקנות חלב ולחם"…')
+                ? (aiBusy ? 'חושב…' : mobile ? 'מה להוסיף? כתבו חופשי…' : 'כתבו בשפה חופשית — "תזכיר לי מחר ב-8 לקחת תרופה", "לקנות חלב ולחם"…')
                 : (cat==='grocery' ? 'הוסף מוצר לרשימת הקניות…' : 'מה להוסיף לחמ״ל?  (Shift+Enter = שורה חדשה)')} />
             <button className={'add-btn'+(aiOn?' ai':'')+(aiBusy?' busy':'')}
               onClick={aiOn?askAI:add} disabled={aiBusy || !text.trim()} title={aiOn?'שליחה ל-AI':'הוספה'}>
-              <Icon path={aiBusy ? I.undo : aiOn ? I.spark : I.plus} size={aiOn?20:22} stroke={2.2} />
+              <Icon path={aiBusy ? I.undo : (aiOn && !mobile) ? I.spark : I.plus} size={(aiOn && !mobile)?20:22} stroke={2.2} />
             </button>
           </div>
         </div>
@@ -3517,7 +3525,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
      עורכים את ה-JSX ולא מריצים את הבנייה מחדש, החתימה לא תתאים והאפליקציה
      תתרגם בעצמה בזמן ריצה — כלומר עריכה ישירה תמיד עובדת, רק לאט יותר.
      נבנה ע"י scripts/build-compiled.ps1 (ראו HANDOFF.md). -->
-<script type="text/plain" id="app-compiled" data-sig="1pv33of.187557">
+<script type="text/plain" id="app-compiled" data-sig="18i26s4.187719">
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 const {
   useState,
   useEffect,
@@ -3729,10 +3738,11 @@ function loadAI() {
   try {
     const p = JSON.parse(localStorage.getItem(AI_LS) || '{}') || {};
     const url = String(p.url || '').trim().replace(/\/+$/, '');
+    /* ׳׳¦׳‘ AI ׳×׳׳™׳“ ׳ ׳₪׳×׳— ׳“׳׳•׳§ ג€” ׳’׳ ׳׳ ׳‘׳¢׳‘׳¨ ׳›׳™׳‘׳• ׳׳•׳×׳• ׳‘׳׳›׳©׳™׳¨ ׳”׳–׳” */
     return {
       url,
       token: String(p.token || '').trim(),
-      on: p.on !== false
+      on: true
     };
   } catch (e) {
     return {
@@ -4605,7 +4615,7 @@ const Card = React.memo(function Card({
   }) : /*#__PURE__*/React.createElement("div", {
     ref: titleRef,
     className: 'ttitle no-drag' + (openTxt ? ' open' : ''),
-    title: "׳”׳§׳©׳” ׳›׳₪׳•׳׳” ׳׳¢׳¨׳™׳›׳”",
+    title: "\u05D4\u05E7\u05E9\u05D4 \u05DB\u05E4\u05D5\u05DC\u05D4 \u05DC\u05E2\u05E8\u05D9\u05DB\u05D4",
     onPointerDown: onTitleDown,
     onClick: () => setOpenTxt(o => !o)
   }, it.title), !editing && (clamped || openTxt) && /*#__PURE__*/React.createElement("div", {
@@ -4624,28 +4634,28 @@ const Card = React.memo(function Card({
     size: 12
   }), " ", cat.label), due && /*#__PURE__*/React.createElement("span", {
     className: 'tchip' + (floating ? '' : ' no-drag'),
-    title: "׳×׳“׳™׳¨׳•׳× ׳—׳–׳¨׳”",
+    title: "\u05EA\u05D3\u05D9\u05E8\u05D5\u05EA \u05D7\u05D6\u05E8\u05D4",
     onClick: () => {
       if (!floating && onRepeat) openPop('repeat');
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.cal,
     size: 12
-  }), " ", fmtDate(due), " ֲ· ", fmtTime(due), rep && /*#__PURE__*/React.createElement("span", null, " ֲ· נ” ", REPEAT_LABEL[rep])), rem && /*#__PURE__*/React.createElement("span", {
+  }), " ", fmtDate(due), " \xB7 ", fmtTime(due), rep && /*#__PURE__*/React.createElement("span", null, " \xB7 \uD83D\uDD01 ", REPEAT_LABEL[rep])), rem && /*#__PURE__*/React.createElement("span", {
     className: 'tchip no-drag ' + (rem.sent ? 'rem-sent' : 'rem'),
-    title: "׳׳—׳™׳¦׳” ׳׳‘׳˜׳׳× ׳׳× ׳”׳×׳–׳›׳•׳¨׳×",
+    title: "\u05DC\u05D7\u05D9\u05E6\u05D4 \u05DE\u05D1\u05D8\u05DC\u05EA \u05D0\u05EA \u05D4\u05EA\u05D6\u05DB\u05D5\u05E8\u05EA",
     onClick: () => onRemind && onRemind(it, false)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.bell,
     size: 12
   }), " ", rem.sent ? '׳×׳•׳–׳›׳¨' : remLabel(rem.when, due)), !rem && due && /*#__PURE__*/React.createElement("span", {
     className: "tchip no-drag",
-    title: "׳”׳₪׳•׳ ׳׳×׳–׳›׳•׳¨׳×",
+    title: "\u05D4\u05E4\u05D5\u05DA \u05DC\u05EA\u05D6\u05DB\u05D5\u05E8\u05EA",
     onClick: () => onRemind && onRemind(it, true)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.bell,
     size: 12
-  }), " ׳”׳–׳›׳¨ ׳׳™"), itemTags.map(k => {
+  }), " \u05D4\u05D6\u05DB\u05E8 \u05DC\u05D9"), itemTags.map(k => {
     const c = catMap[k];
     if (!c) return null;
     return /*#__PURE__*/React.createElement("span", {
@@ -4674,32 +4684,32 @@ const Card = React.memo(function Card({
     size: 14
   }), /*#__PURE__*/React.createElement("span", {
     className: "lname"
-  }, loc), /*#__PURE__*/React.createElement("span", null, "׳׳₪׳” ג†—")) : null), /*#__PURE__*/React.createElement("div", {
+  }, loc), /*#__PURE__*/React.createElement("span", null, "\u05DE\u05E4\u05D4 \u2197")) : null), /*#__PURE__*/React.createElement("div", {
     className: "tacts"
   }, !floating && (st === 'doing' ? /*#__PURE__*/React.createElement("button", {
     className: "ibtn doing on no-drag",
-    title: "׳”׳—׳–׳¨ ׳׳׳‘׳™׳¦׳•׳¢",
+    title: "\u05D4\u05D7\u05D6\u05E8 \u05DC\u05DC\u05D1\u05D9\u05E6\u05D5\u05E2",
     onClick: () => onStatus(it, 'todo')
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.undo,
     size: 15
   })) : /*#__PURE__*/React.createElement("button", {
     className: "ibtn doing no-drag",
-    title: "׳”׳¢׳‘׳¨ ׳׳‘׳¢׳‘׳•׳“׳”",
+    title: "\u05D4\u05E2\u05D1\u05E8 \u05DC\u05D1\u05E2\u05D1\u05D5\u05D3\u05D4",
     onClick: () => onStatus(it, 'doing')
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.play,
     size: 14
   }))), !floating && /*#__PURE__*/React.createElement("button", {
     className: 'ibtn tag no-drag' + (tagOpen ? ' on' : ''),
-    title: "׳×׳™׳•׳’",
+    title: "\u05EA\u05D9\u05D5\u05D2",
     onClick: () => openPop('tag')
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.tag,
     size: 15
   })), !floating && /*#__PURE__*/React.createElement("button", {
     className: "ibtn del no-drag",
-    title: "׳׳—׳™׳§׳”",
+    title: "\u05DE\u05D7\u05D9\u05E7\u05D4",
     onClick: () => onRemove(it)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.trash,
@@ -4712,7 +4722,7 @@ const Card = React.memo(function Card({
     onClick: e => e.stopPropagation()
   }, /*#__PURE__*/React.createElement("div", {
     className: "h"
-  }, "׳›׳ ׳›׳׳” ׳–׳׳ ׳׳—׳–׳•׳¨?"), REPEATS.map(r => {
+  }, "\u05DB\u05DC \u05DB\u05DE\u05D4 \u05D6\u05DE\u05DF \u05DC\u05D7\u05D6\u05D5\u05E8?"), REPEATS.map(r => {
     const on = rep === r.key;
     return /*#__PURE__*/React.createElement("div", {
       key: r.key || 'none',
@@ -4740,7 +4750,7 @@ const Card = React.memo(function Card({
     onClick: e => e.stopPropagation()
   }, /*#__PURE__*/React.createElement("div", {
     className: "h"
-  }, "׳×׳™׳•׳’"), cats.filter(isSmartCat).map(c => {
+  }, "\u05EA\u05D9\u05D5\u05D2"), cats.filter(isSmartCat).map(c => {
     const on = itemTags.includes(c.key);
     return /*#__PURE__*/React.createElement("div", {
       key: c.key,
@@ -4768,7 +4778,7 @@ const Card = React.memo(function Card({
   }), /*#__PURE__*/React.createElement("button", {
     className: "done-btn",
     onClick: () => setTagOpen(false)
-  }, "׳¡׳™׳•׳"))));
+  }, "\u05E1\u05D9\u05D5\u05DD"))));
 });
 
 /* ׳©׳ ׳”׳׳•׳¦׳¨ ג€” ׳”׳§׳©׳” ׳›׳₪׳•׳׳” ׳₪׳•׳×׳—׳× ׳¢׳¨׳™׳›׳” ׳‘׳׳§׳•׳, ׳‘׳“׳™׳•׳§ ׳›׳׳• ׳‘׳›׳•׳×׳¨׳× ׳©׳ ׳׳©׳™׳׳” */
@@ -4812,7 +4822,7 @@ function GName({
   });
   return /*#__PURE__*/React.createElement("span", {
     className: "gname",
-    title: "׳”׳§׳©׳” ׳›׳₪׳•׳׳” ׳׳¢׳¨׳™׳›׳”",
+    title: "\u05D4\u05E7\u05E9\u05D4 \u05DB\u05E4\u05D5\u05DC\u05D4 \u05DC\u05E2\u05E8\u05D9\u05DB\u05D4",
     onPointerDown: onDown
   }, it.title);
 }
@@ -4998,9 +5008,9 @@ function ShoppingList({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: cat.icon,
     size: 17
-  })), "׳¨׳©׳™׳׳× ׳§׳ ׳™׳•׳×", /*#__PURE__*/React.createElement("span", {
+  })), "\u05E8\u05E9\u05D9\u05DE\u05EA \u05E7\u05E0\u05D9\u05D5\u05EA", /*#__PURE__*/React.createElement("span", {
     className: "n"
-  }, active.length, " ׳׳§׳ ׳™׳™׳”")), /*#__PURE__*/React.createElement("div", {
+  }, active.length, " \u05DC\u05E7\u05E0\u05D9\u05D9\u05D4")), /*#__PURE__*/React.createElement("div", {
     className: "shop-switch"
   }, SHOP_LISTS.map(l => /*#__PURE__*/React.createElement("button", {
     key: l.key,
@@ -5015,7 +5025,7 @@ function ShoppingList({
     ref: bodyRef
   }, emptyAll && /*#__PURE__*/React.createElement("div", {
     className: "shop-empty"
-  }, meta.key === 'super' ? /*#__PURE__*/React.createElement(React.Fragment, null, "׳¨׳©׳™׳׳× ׳”׳¡׳•׳₪׳¨ ׳¨׳™׳§׳” נ›’", /*#__PURE__*/React.createElement("br", null), "׳”׳•׳¡׳™׳₪׳• ׳׳•׳¦׳¨ ׳׳׳׳˜׳” ג€” ׳”׳•׳ ׳™׳¡׳•׳“׳¨ ׳׳•׳˜׳•׳׳˜׳™׳× ׳׳₪׳™ ׳׳—׳׳§׳•׳× ׳”׳—׳ ׳•׳×.") : /*#__PURE__*/React.createElement(React.Fragment, null, "׳׳™׳ ׳›׳׳ ׳›׳׳•׳ נ·ן¸", /*#__PURE__*/React.createElement("br", null), "׳‘׳’׳“׳™׳, ׳׳׳§׳˜׳¨׳•׳ ׳™׳§׳”, ׳¦׳™׳•׳“ ׳׳‘׳™׳× ג€” ׳›׳ ׳׳” ׳©׳׳ ׳ ׳§׳ ׳” ׳‘׳¡׳•׳₪׳¨.")), drop && /*#__PURE__*/React.createElement("div", {
+  }, meta.key === 'super' ? /*#__PURE__*/React.createElement(React.Fragment, null, "\u05E8\u05E9\u05D9\u05DE\u05EA \u05D4\u05E1\u05D5\u05E4\u05E8 \u05E8\u05D9\u05E7\u05D4 \uD83D\uDED2", /*#__PURE__*/React.createElement("br", null), "\u05D4\u05D5\u05E1\u05D9\u05E4\u05D5 \u05DE\u05D5\u05E6\u05E8 \u05DE\u05DC\u05DE\u05D8\u05D4 \u2014 \u05D4\u05D5\u05D0 \u05D9\u05E1\u05D5\u05D3\u05E8 \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9\u05EA \u05DC\u05E4\u05D9 \u05DE\u05D7\u05DC\u05E7\u05D5\u05EA \u05D4\u05D7\u05E0\u05D5\u05EA.") : /*#__PURE__*/React.createElement(React.Fragment, null, "\u05D0\u05D9\u05DF \u05DB\u05D0\u05DF \u05DB\u05DC\u05D5\u05DD \uD83C\uDFF7\uFE0F", /*#__PURE__*/React.createElement("br", null), "\u05D1\u05D2\u05D3\u05D9\u05DD, \u05D0\u05DC\u05E7\u05D8\u05E8\u05D5\u05E0\u05D9\u05E7\u05D4, \u05E6\u05D9\u05D5\u05D3 \u05DC\u05D1\u05D9\u05EA \u2014 \u05DB\u05DC \u05DE\u05D4 \u05E9\u05DC\u05D0 \u05E0\u05E7\u05E0\u05D4 \u05D1\u05E1\u05D5\u05E4\u05E8.")), drop && /*#__PURE__*/React.createElement("div", {
     className: "shop-drop",
     style: {
       top: drop.y
@@ -5044,7 +5054,7 @@ function ShoppingList({
         }
       }, /*#__PURE__*/React.createElement("span", {
         className: "ghandle",
-        title: "׳’׳¨׳™׳¨׳” ׳׳¡׳™׳“׳•׳¨",
+        title: "\u05D2\u05E8\u05D9\u05E8\u05D4 \u05DC\u05E1\u05D9\u05D3\u05D5\u05E8",
         onPointerDown: e => onGrip(e, it)
       }, /*#__PURE__*/React.createElement(Icon, {
         path: I.grip,
@@ -5052,7 +5062,7 @@ function ShoppingList({
         stroke: 2.4
       })), /*#__PURE__*/React.createElement("span", {
         className: "gbox",
-        title: "׳ ׳§׳ ׳”",
+        title: "\u05E0\u05E7\u05E0\u05D4",
         onClick: () => onToggle(it, true)
       }), /*#__PURE__*/React.createElement("div", {
         className: "gmain"
@@ -5068,7 +5078,7 @@ function ShoppingList({
         className: "qty"
       }, /*#__PURE__*/React.createElement("button", {
         className: "qbtn",
-        title: "׳₪׳—׳•׳×",
+        title: "\u05E4\u05D7\u05D5\u05EA",
         onClick: () => onQty(it, -1),
         disabled: q <= 1
       }, /*#__PURE__*/React.createElement(Icon, {
@@ -5079,7 +5089,7 @@ function ShoppingList({
         className: "qn"
       }, q), /*#__PURE__*/React.createElement("button", {
         className: "qbtn",
-        title: "׳¢׳•׳“",
+        title: "\u05E2\u05D5\u05D3",
         onClick: () => onQty(it, 1)
       }, /*#__PURE__*/React.createElement(Icon, {
         path: I.plus,
@@ -5094,7 +5104,7 @@ function ShoppingList({
         size: 15
       })), /*#__PURE__*/React.createElement("button", {
         className: "ibtn del",
-        title: "׳׳—׳™׳§׳”",
+        title: "\u05DE\u05D7\u05D9\u05E7\u05D4",
         onClick: () => onRemove(it)
       }, /*#__PURE__*/React.createElement(Icon, {
         path: I.trash,
@@ -5103,12 +5113,12 @@ function ShoppingList({
     }));
   }), bought.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "shop-sep"
-  }, "׳ ׳¨׳›׳©׳• (", bought.length, ")"), bought.map(it => /*#__PURE__*/React.createElement("div", {
+  }, "\u05E0\u05E8\u05DB\u05E9\u05D5 (", bought.length, ")"), bought.map(it => /*#__PURE__*/React.createElement("div", {
     className: "gitem bought",
     key: it.id
   }, /*#__PURE__*/React.createElement("span", {
     className: "gbox",
-    title: "׳”׳—׳–׳¨ ׳׳¨׳©׳™׳׳”",
+    title: "\u05D4\u05D7\u05D6\u05E8 \u05DC\u05E8\u05E9\u05D9\u05DE\u05D4",
     onClick: () => onToggle(it, false)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.check,
@@ -5119,9 +5129,9 @@ function ShoppingList({
     onEdit: onEditTitle
   }), qtyOf(it) > 1 && /*#__PURE__*/React.createElement("span", {
     className: "gqty"
-  }, "ֳ—", qtyOf(it)), /*#__PURE__*/React.createElement("button", {
+  }, "\xD7", qtyOf(it)), /*#__PURE__*/React.createElement("button", {
     className: "ibtn del",
-    title: "׳׳—׳™׳§׳”",
+    title: "\u05DE\u05D7\u05D9\u05E7\u05D4",
     onClick: () => onRemove(it)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.trash,
@@ -5138,7 +5148,7 @@ function ShoppingList({
     className: "gname"
   }, drag.title), drag.qty > 1 && /*#__PURE__*/React.createElement("span", {
     className: "gqty"
-  }, "ֳ—", drag.qty))));
+  }, "\xD7", drag.qty))));
 }
 
 /* ============ ׳×׳¦׳•׳’׳× ׳™׳•׳׳ ============
@@ -5412,16 +5422,16 @@ function CalendarView({
     className: "calnav"
   }, effMode !== 'agenda' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
     className: "cnb",
-    title: "׳§׳•׳“׳",
+    title: "\u05E7\u05D5\u05D3\u05DD",
     onClick: () => setOffset(o => o - 1)
-  }, "ג€¹"), /*#__PURE__*/React.createElement("button", {
+  }, "\u2039"), /*#__PURE__*/React.createElement("button", {
     className: "cnb today",
     onClick: () => setOffset(0)
-  }, "׳”׳™׳•׳"), /*#__PURE__*/React.createElement("button", {
+  }, "\u05D4\u05D9\u05D5\u05DD"), /*#__PURE__*/React.createElement("button", {
     className: "cnb",
-    title: "׳”׳‘׳",
+    title: "\u05D4\u05D1\u05D0",
     onClick: () => setOffset(o => o + 1)
-  }, "ג€÷")), /*#__PURE__*/React.createElement("span", {
+  }, "\u203A")), /*#__PURE__*/React.createElement("span", {
     className: "crng"
   }, rangeLabel))), !wide && /*#__PURE__*/React.createElement("div", {
     className: "calf"
@@ -5432,7 +5442,7 @@ function CalendarView({
     return g && (g.all.length || g.timed.length);
   }).length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "side-empty"
-  }, "׳׳™׳ ׳׳™׳¨׳•׳¢׳™׳ ׳‘׳˜׳•׳•׳— ׳”׳–׳”.") : days.map(d => {
+  }, "\u05D0\u05D9\u05DF \u05D0\u05D9\u05E8\u05D5\u05E2\u05D9\u05DD \u05D1\u05D8\u05D5\u05D5\u05D7 \u05D4\u05D6\u05D4.") : days.map(d => {
     const g = byDay[dayId(d)] || {
       all: [],
       timed: []
@@ -5471,15 +5481,15 @@ function CalendarView({
       className: "mtag"
     }, e.ev.calendar_label || '׳™׳•׳׳') : e.occurrence ? /*#__PURE__*/React.createElement("span", {
       className: "mtag rem"
-    }, "נ” ", REPEAT_LABEL[e.repeat]) : /*#__PURE__*/React.createElement("span", {
+    }, "\uD83D\uDD01 ", REPEAT_LABEL[e.repeat]) : /*#__PURE__*/React.createElement("span", {
       className: 'mtag' + (e.rem ? ' rem' : '')
     }, e.rem ? e.rem.sent ? '׳”׳×׳–׳›׳•׳¨׳× ׳ ׳©׳׳—׳”' : '׳×׳–׳›׳•׳¨׳× ׳‘׳•׳•׳׳˜׳¡׳׳₪' : '׳׳׳ ׳×׳–׳›׳•׳¨׳×'), e.repeat && !e.occurrence && /*#__PURE__*/React.createElement("span", {
       className: "mtag"
-    }, "נ” ", REPEAT_LABEL[e.repeat]), e.loc && /*#__PURE__*/React.createElement("span", {
+    }, "\uD83D\uDD01 ", REPEAT_LABEL[e.repeat]), e.loc && /*#__PURE__*/React.createElement("span", {
       className: "mtag"
     }, e.loc))), /*#__PURE__*/React.createElement("button", {
       className: "ax",
-      title: "׳”׳¡׳×׳¨ ׳׳”׳׳•\"׳–",
+      title: "\u05D4\u05E1\u05EA\u05E8 \u05DE\u05D4\u05DC\u05D5\"\u05D6",
       onClick: () => removeOf(e)
     }, /*#__PURE__*/React.createElement(Icon, {
       path: I.x,
@@ -5509,7 +5519,7 @@ function CalendarView({
     }, hebDate(d)));
   }), /*#__PURE__*/React.createElement("div", {
     className: "allday-lbl"
-  }, "׳›׳ ׳”׳™׳•׳"), days.map(d => {
+  }, "\u05DB\u05DC \u05D4\u05D9\u05D5\u05DD"), days.map(d => {
     const g = byDay[dayId(d)] || {
       all: []
     };
@@ -5569,7 +5579,7 @@ function CalendarView({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.cal,
     size: 13
-  }), "׳¢׳•׳“ ", hiddenByOwner, " ", hiddenByOwner === 1 ? '׳׳™׳¨׳•׳¢' : '׳׳™׳¨׳•׳¢׳™׳', " ׳‘׳™׳•׳׳ ׳™׳ ׳›׳‘׳•׳™׳™׳ ג€” ׳”׳“׳׳§ ׳”׳›׳"));
+  }), "\u05E2\u05D5\u05D3 ", hiddenByOwner, " ", hiddenByOwner === 1 ? '׳׳™׳¨׳•׳¢' : '׳׳™׳¨׳•׳¢׳™׳', " \u05D1\u05D9\u05D5\u05DE\u05E0\u05D9\u05DD \u05DB\u05D1\u05D5\u05D9\u05D9\u05DD \u2014 \u05D4\u05D3\u05DC\u05E7 \u05D4\u05DB\u05DC"));
 }
 
 /* ׳×׳™׳•׳’ ׳“׳׳•׳§ ׳‘׳׳¡׳™׳׳” ׳׳•׳‘׳© ׳׳× ׳”׳¦׳‘׳¢ ׳©׳ ׳”׳×׳™׳•׳’ ׳¢׳¦׳׳• ג€” ׳‘׳“׳™׳•׳§ ׳›׳׳• ׳”׳¦'׳™׳₪ ׳©׳¢׳ ׳”׳©׳•׳¨׳”
@@ -5600,9 +5610,9 @@ function TagRail({
   }, /*#__PURE__*/React.createElement("h4", null, /*#__PURE__*/React.createElement(Icon, {
     path: I.tag,
     size: 12
-  }), " ׳×׳™׳•׳’׳™׳", /*#__PURE__*/React.createElement("button", {
+  }), " \u05EA\u05D9\u05D5\u05D2\u05D9\u05DD", /*#__PURE__*/React.createElement("button", {
     className: "g",
-    title: "׳¢׳¨׳™׳›׳× ׳×׳™׳•׳’׳™׳",
+    title: "\u05E2\u05E8\u05D9\u05DB\u05EA \u05EA\u05D9\u05D5\u05D2\u05D9\u05DD",
     onClick: onEdit
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.gear,
@@ -5650,7 +5660,7 @@ function TagRail({
   }), chips.length > 0 && /*#__PURE__*/React.createElement("button", {
     className: "clr",
     onClick: onClear
-  }, "׳ ׳™׳§׳•׳™ ׳”׳¡׳™׳ ׳•׳ (", chips.length, ")"));
+  }, "\u05E0\u05D9\u05E7\u05D5\u05D9 \u05D4\u05E1\u05D9\u05E0\u05D5\u05DF (", chips.length, ")"));
 }
 
 /* ============ ׳”׳’׳“׳¨׳× ׳”׳—׳™׳‘׳•׳¨ ׳׳©׳•׳¨׳× ׳”-AI ============
@@ -5695,7 +5705,7 @@ function AISetup({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.spark,
     size: 19
-  }), " ׳©׳•׳¨׳× AI", /*#__PURE__*/React.createElement("button", {
+  }), " \u05E9\u05D5\u05E8\u05EA AI", /*#__PURE__*/React.createElement("button", {
     className: "ibtn x",
     onClick: onClose
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -5705,9 +5715,9 @@ function AISetup({
     className: "modal-body"
   }, /*#__PURE__*/React.createElement("p", {
     className: "aihelp"
-  }, "׳”׳‘׳§׳©׳•׳× ׳ ׳©׳׳—׳•׳× ׳׳‘׳•׳˜ ׳©׳׳›׳, ׳•׳©׳ ׳™׳•׳©׳‘ ׳׳₪׳×׳— Gemini ג€” ׳”׳•׳ ׳׳ ׳׳’׳™׳¢ ׳׳“׳₪׳“׳₪׳. ׳”׳›׳×׳•׳‘׳× ׳•׳”׳˜׳•׳§׳ ׳ ׳©׳׳¨׳™׳ ׳‘׳׳›׳©׳™׳¨ ׳”׳–׳” ׳‘׳׳‘׳“."), /*#__PURE__*/React.createElement("label", {
+  }, "\u05D4\u05D1\u05E7\u05E9\u05D5\u05EA \u05E0\u05E9\u05DC\u05D7\u05D5\u05EA \u05DC\u05D1\u05D5\u05D8 \u05E9\u05DC\u05DB\u05DD, \u05D5\u05E9\u05DD \u05D9\u05D5\u05E9\u05D1 \u05DE\u05E4\u05EA\u05D7 Gemini \u2014 \u05D4\u05D5\u05D0 \u05DC\u05D0 \u05DE\u05D2\u05D9\u05E2 \u05DC\u05D3\u05E4\u05D3\u05E4\u05DF. \u05D4\u05DB\u05EA\u05D5\u05D1\u05EA \u05D5\u05D4\u05D8\u05D5\u05E7\u05DF \u05E0\u05E9\u05DE\u05E8\u05D9\u05DD \u05D1\u05DE\u05DB\u05E9\u05D9\u05E8 \u05D4\u05D6\u05D4 \u05D1\u05DC\u05D1\u05D3."), /*#__PURE__*/React.createElement("label", {
     className: "ailbl"
-  }, "׳›׳×׳•׳‘׳× ׳”׳‘׳•׳˜"), /*#__PURE__*/React.createElement("input", {
+  }, "\u05DB\u05EA\u05D5\u05D1\u05EA \u05D4\u05D1\u05D5\u05D8"), /*#__PURE__*/React.createElement("input", {
     className: "aiinp",
     value: url,
     onChange: e => setUrl(e.target.value),
@@ -5715,11 +5725,11 @@ function AISetup({
     dir: "ltr"
   }), /*#__PURE__*/React.createElement("label", {
     className: "ailbl"
-  }, "׳˜׳•׳§׳ (APP_TOKEN ׳©׳”׳’׳“׳¨׳×׳ ׳‘-Railway)"), /*#__PURE__*/React.createElement("input", {
+  }, "\u05D8\u05D5\u05E7\u05DF (APP_TOKEN \u05E9\u05D4\u05D2\u05D3\u05E8\u05EA\u05DD \u05D1-Railway)"), /*#__PURE__*/React.createElement("input", {
     className: "aiinp",
     value: token,
     onChange: e => setToken(e.target.value),
-    placeholder: "׳׳—׳¨׳•׳–׳× ׳¡׳•׳“׳™׳×",
+    placeholder: "\u05DE\u05D7\u05E8\u05D5\u05D6\u05EA \u05E1\u05D5\u05D3\u05D9\u05EA",
     dir: "ltr",
     type: "password"
   }), test && /*#__PURE__*/React.createElement("div", {
@@ -5730,14 +5740,14 @@ function AISetup({
     className: "cmb",
     onClick: check,
     disabled: !clean || !token.trim()
-  }, "׳‘׳“׳™׳§׳× ׳—׳™׳‘׳•׳¨"), /*#__PURE__*/React.createElement("button", {
+  }, "\u05D1\u05D3\u05D9\u05E7\u05EA \u05D7\u05D9\u05D1\u05D5\u05E8"), /*#__PURE__*/React.createElement("button", {
     className: "cmb on",
     onClick: () => onSave({
       url: clean,
       token: token.trim()
     }),
     disabled: !clean || !token.trim()
-  }, "׳©׳׳™׳¨׳”")))));
+  }, "\u05E9\u05DE\u05D9\u05E8\u05D4")))));
 }
 
 /* ׳”׳×׳¨׳׳•׳× Push. ׳׳¨׳׳” ׳‘׳׳‘׳“ ׳׳׳” ׳©׳”׳‘׳•׳˜ ׳›׳‘׳¨ ׳©׳•׳׳— ׳‘׳•׳•׳׳˜׳¡׳׳₪ ג€” ׳׳ ׳¢׳¨׳•׳¥ ׳—׳“׳©.
@@ -5844,7 +5854,7 @@ function PushSetup({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.bell,
     size: 19
-  }), " ׳”׳×׳¨׳׳•׳×", /*#__PURE__*/React.createElement("button", {
+  }), " \u05D4\u05EA\u05E8\u05D0\u05D5\u05EA", /*#__PURE__*/React.createElement("button", {
     className: "ibtn x",
     onClick: onClose
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -5854,36 +5864,36 @@ function PushSetup({
     className: "modal-body"
   }, /*#__PURE__*/React.createElement("p", {
     className: "aihelp"
-  }, "׳›׳ ׳׳” ׳©׳”׳‘׳•׳˜ ׳©׳•׳׳— ׳‘׳•׳•׳׳˜׳¡׳׳₪ ׳™׳’׳™׳¢ ׳’׳ ׳›׳”׳×׳¨׳׳” ׳׳׳›׳©׳™׳¨ ׳”׳–׳”."), !standalone && /*#__PURE__*/React.createElement("p", {
+  }, "\u05DB\u05DC \u05DE\u05D4 \u05E9\u05D4\u05D1\u05D5\u05D8 \u05E9\u05D5\u05DC\u05D7 \u05D1\u05D5\u05D5\u05D0\u05D8\u05E1\u05D0\u05E4 \u05D9\u05D2\u05D9\u05E2 \u05D2\u05DD \u05DB\u05D4\u05EA\u05E8\u05D0\u05D4 \u05DC\u05DE\u05DB\u05E9\u05D9\u05E8 \u05D4\u05D6\u05D4."), !standalone && /*#__PURE__*/React.createElement("p", {
     className: "aihelp"
-  }, "ג ן¸ ׳‘׳׳™׳™׳₪׳•׳ ׳–׳” ׳¢׳•׳‘׳“ ׳¨׳§ ׳“׳¨׳ ׳׳™׳™׳§׳•׳ ׳©׳ ׳•׳¡׳£ ׳׳׳¡׳ ׳”׳‘׳™׳×: ׳¡׳₪׳׳¨׳™ ג† ׳©׳™׳×׳•׳£ ג† ׳”׳•׳¡׳£ ׳׳׳¡׳ ׳”׳‘׳™׳×. ׳›׳¨׳•׳ ׳׳ ׳×׳•׳׳ ׳‘׳”׳×׳¨׳׳•׳× push ׳›׳׳ ׳‘-iOS."), /*#__PURE__*/React.createElement("label", {
+  }, "\u26A0\uFE0F \u05D1\u05D0\u05D9\u05D9\u05E4\u05D5\u05DF \u05D6\u05D4 \u05E2\u05D5\u05D1\u05D3 \u05E8\u05E7 \u05D3\u05E8\u05DA \u05D0\u05D9\u05D9\u05E7\u05D5\u05DF \u05E9\u05E0\u05D5\u05E1\u05E3 \u05DC\u05DE\u05E1\u05DA \u05D4\u05D1\u05D9\u05EA: \u05E1\u05E4\u05D0\u05E8\u05D9 \u2190 \u05E9\u05D9\u05EA\u05D5\u05E3 \u2190 \u05D4\u05D5\u05E1\u05E3 \u05DC\u05DE\u05E1\u05DA \u05D4\u05D1\u05D9\u05EA. \u05DB\u05E8\u05D5\u05DD \u05DC\u05D0 \u05EA\u05D5\u05DE\u05DA \u05D1\u05D4\u05EA\u05E8\u05D0\u05D5\u05EA push \u05DB\u05DC\u05DC \u05D1-iOS."), /*#__PURE__*/React.createElement("label", {
     className: "ailbl"
-  }, "׳׳™ ׳׳×׳?"), /*#__PURE__*/React.createElement("div", {
+  }, "\u05DE\u05D9 \u05D0\u05EA\u05DD?"), /*#__PURE__*/React.createElement("div", {
     className: "aibtns"
   }, /*#__PURE__*/React.createElement("button", {
     className: 'cmb' + (member === 'yair' ? ' on' : ''),
     onClick: () => setMember('yair')
-  }, "׳™׳׳™׳¨"), /*#__PURE__*/React.createElement("button", {
+  }, "\u05D9\u05D0\u05D9\u05E8"), /*#__PURE__*/React.createElement("button", {
     className: 'cmb' + (member === 'tamar' ? ' on' : ''),
     onClick: () => setMember('tamar')
-  }, "׳×׳׳¨")), status === 'on' && /*#__PURE__*/React.createElement("div", {
+  }, "\u05EA\u05DE\u05E8")), status === 'on' && /*#__PURE__*/React.createElement("div", {
     className: "aitest ok"
-  }, "ג” ׳”׳”׳×׳¨׳׳•׳× ׳₪׳¢׳™׳׳•׳× ׳‘׳׳›׳©׳™׳¨ ׳”׳–׳”"), status === 'unsupported' && /*#__PURE__*/React.createElement("div", {
+  }, "\u2714 \u05D4\u05D4\u05EA\u05E8\u05D0\u05D5\u05EA \u05E4\u05E2\u05D9\u05DC\u05D5\u05EA \u05D1\u05DE\u05DB\u05E9\u05D9\u05E8 \u05D4\u05D6\u05D4"), status === 'unsupported' && /*#__PURE__*/React.createElement("div", {
     className: "aitest bad"
-  }, "ג– ׳”׳“׳₪׳“׳₪׳ ׳”׳–׳” ׳׳ ׳×׳•׳׳ ׳‘׳”׳×׳¨׳׳•׳×"), status === 'need-install' && /*#__PURE__*/React.createElement("div", {
+  }, "\u2716 \u05D4\u05D3\u05E4\u05D3\u05E4\u05DF \u05D4\u05D6\u05D4 \u05DC\u05D0 \u05EA\u05D5\u05DE\u05DA \u05D1\u05D4\u05EA\u05E8\u05D0\u05D5\u05EA"), status === 'need-install' && /*#__PURE__*/React.createElement("div", {
     className: "aitest bad"
-  }, "ג– ׳§׳•׳“׳ ׳¦׳¨׳™׳ ׳׳”׳•׳¡׳™׳£ ׳׳׳¡׳ ׳”׳‘׳™׳× (׳¨׳׳• ׳׳׳¢׳׳”)"), status === 'denied' && /*#__PURE__*/React.createElement("div", {
+  }, "\u2716 \u05E7\u05D5\u05D3\u05DD \u05E6\u05E8\u05D9\u05DA \u05DC\u05D4\u05D5\u05E1\u05D9\u05E3 \u05DC\u05DE\u05E1\u05DA \u05D4\u05D1\u05D9\u05EA (\u05E8\u05D0\u05D5 \u05DC\u05DE\u05E2\u05DC\u05D4)"), status === 'denied' && /*#__PURE__*/React.createElement("div", {
     className: "aitest bad"
-  }, "ג– ׳”׳”׳¨׳©׳׳” ׳ ׳“׳—׳×׳” ג€” ׳׳₪׳©׳¨ ׳׳©׳ ׳•׳× ׳‘׳”׳’׳“׳¨׳•׳× ׳”׳“׳₪׳“׳₪׳"), status === 'need-member' && /*#__PURE__*/React.createElement("div", {
+  }, "\u2716 \u05D4\u05D4\u05E8\u05E9\u05D0\u05D4 \u05E0\u05D3\u05D7\u05EA\u05D4 \u2014 \u05D0\u05E4\u05E9\u05E8 \u05DC\u05E9\u05E0\u05D5\u05EA \u05D1\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA \u05D4\u05D3\u05E4\u05D3\u05E4\u05DF"), status === 'need-member' && /*#__PURE__*/React.createElement("div", {
     className: "aitest bad"
-  }, "ג– ׳‘׳—׳¨׳• ׳§׳•׳“׳ ׳׳™ ׳׳×׳"), status.indexOf('error:') === 0 && /*#__PURE__*/React.createElement("div", {
+  }, "\u2716 \u05D1\u05D7\u05E8\u05D5 \u05E7\u05D5\u05D3\u05DD \u05DE\u05D9 \u05D0\u05EA\u05DD"), status.indexOf('error:') === 0 && /*#__PURE__*/React.createElement("div", {
     className: "aitest bad"
-  }, "ג– ", status.slice(6)), /*#__PURE__*/React.createElement("div", {
+  }, "\u2716 ", status.slice(6)), /*#__PURE__*/React.createElement("div", {
     className: "aibtns"
   }, status === 'on' ? /*#__PURE__*/React.createElement("button", {
     className: "cmb",
     onClick: unsubscribe
-  }, "׳›׳™׳‘׳•׳™ ׳”׳×׳¨׳׳•׳×") : /*#__PURE__*/React.createElement("button", {
+  }, "\u05DB\u05D9\u05D1\u05D5\u05D9 \u05D4\u05EA\u05E8\u05D0\u05D5\u05EA") : /*#__PURE__*/React.createElement("button", {
     className: "cmb on",
     onClick: subscribe,
     disabled: status === 'checking'
@@ -5907,11 +5917,11 @@ function ActivityFeed({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.radio,
     size: 17
-  })), " ׳₪׳¢׳™׳׳•׳× ׳׳—׳¨׳•׳ ׳”"), /*#__PURE__*/React.createElement("div", {
+  })), " \u05E4\u05E2\u05D9\u05DC\u05D5\u05EA \u05D0\u05D7\u05E8\u05D5\u05E0\u05D4"), /*#__PURE__*/React.createElement("div", {
     className: "panel-body"
   }, activities.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "side-empty"
-  }, "׳׳™׳ ׳¢׳“׳™׳™׳ ׳₪׳¢׳™׳׳•׳×.", /*#__PURE__*/React.createElement("br", null), "׳›׳ ׳©׳™׳ ׳•׳™ ׳™׳•׳₪׳™׳¢ ׳›׳׳ ׳‘׳–׳׳ ׳׳׳×.") : activities.map(a => {
+  }, "\u05D0\u05D9\u05DF \u05E2\u05D3\u05D9\u05D9\u05DF \u05E4\u05E2\u05D9\u05DC\u05D5\u05EA.", /*#__PURE__*/React.createElement("br", null), "\u05DB\u05DC \u05E9\u05D9\u05E0\u05D5\u05D9 \u05D9\u05D5\u05E4\u05D9\u05E2 \u05DB\u05D0\u05DF \u05D1\u05D6\u05DE\u05DF \u05D0\u05DE\u05EA.") : activities.map(a => {
     const m = memberOf(a.who);
     return /*#__PURE__*/React.createElement("div", {
       className: "act-item",
@@ -5976,7 +5986,7 @@ function CatEditor({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.gear,
     size: 19
-  }), " ׳¢׳¨׳™׳›׳× ׳§׳˜׳’׳•׳¨׳™׳•׳×", /*#__PURE__*/React.createElement("button", {
+  }), " \u05E2\u05E8\u05D9\u05DB\u05EA \u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D5\u05EA", /*#__PURE__*/React.createElement("button", {
     className: "ibtn x",
     onClick: onClose
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -5994,7 +6004,7 @@ function CatEditor({
       background: hexA(c.color, 0.2),
       color: c.color
     },
-    title: "׳¦׳‘׳¢ ׳•׳¡׳׳",
+    title: "\u05E6\u05D1\u05E2 \u05D5\u05E1\u05DE\u05DC",
     onClick: () => setOpenIdx(openIdx === i ? -1 : i)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: c.icon,
@@ -6007,7 +6017,7 @@ function CatEditor({
     })
   }), /*#__PURE__*/React.createElement("button", {
     className: "ibtn del",
-    title: "׳׳—׳™׳§׳”",
+    title: "\u05DE\u05D7\u05D9\u05E7\u05D4",
     onClick: () => del(i)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.trash,
@@ -6016,7 +6026,7 @@ function CatEditor({
     className: "cat-exp"
   }, /*#__PURE__*/React.createElement("div", {
     className: "exp-lbl"
-  }, "׳¦׳‘׳¢"), /*#__PURE__*/React.createElement("div", {
+  }, "\u05E6\u05D1\u05E2"), /*#__PURE__*/React.createElement("div", {
     className: "sw-grid"
   }, PALETTE.map(hx => /*#__PURE__*/React.createElement("button", {
     key: hx,
@@ -6029,7 +6039,7 @@ function CatEditor({
     })
   }))), /*#__PURE__*/React.createElement("div", {
     className: "exp-lbl"
-  }, "׳¡׳׳"), /*#__PURE__*/React.createElement("div", {
+  }, "\u05E1\u05DE\u05DC"), /*#__PURE__*/React.createElement("div", {
     className: "ic-grid"
   }, ICON_CHOICES.map((ic, ii) => /*#__PURE__*/React.createElement("button", {
     key: ii,
@@ -6052,12 +6062,12 @@ function CatEditor({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.plus,
     size: 16
-  }), " ׳§׳˜׳’׳•׳¨׳™׳” ׳—׳“׳©׳”"), /*#__PURE__*/React.createElement("button", {
+  }), " \u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D4 \u05D7\u05D3\u05E9\u05D4"), /*#__PURE__*/React.createElement("button", {
     className: "btn-fill",
     onClick: save
-  }, "׳©׳׳™׳¨׳”")), /*#__PURE__*/React.createElement("div", {
+  }, "\u05E9\u05DE\u05D9\u05E8\u05D4")), /*#__PURE__*/React.createElement("div", {
     className: "modal-note"
-  }, "׳”׳§׳˜׳’׳•׳¨׳™׳•׳× ׳ ׳©׳׳¨׳•׳× ׳‘׳׳›׳©׳™׳¨ ׳”׳–׳”. ׳¡׳ ׳›׳¨׳•׳ ׳‘׳™׳ ׳׳›׳©׳™׳¨׳™׳ (׳•׳’׳ ׳׳‘׳•׳˜) ׳™׳×׳•׳•׳¡׳£ ׳‘׳”׳׳©׳ ׳¢׳ ׳˜׳‘׳׳× ׳§׳˜׳’׳•׳¨׳™׳•׳× ׳‘ײ¾Supabase."))));
+  }, "\u05D4\u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D5\u05EA \u05E0\u05E9\u05DE\u05E8\u05D5\u05EA \u05D1\u05DE\u05DB\u05E9\u05D9\u05E8 \u05D4\u05D6\u05D4. \u05E1\u05E0\u05DB\u05E8\u05D5\u05DF \u05D1\u05D9\u05DF \u05DE\u05DB\u05E9\u05D9\u05E8\u05D9\u05DD (\u05D5\u05D2\u05DD \u05DC\u05D1\u05D5\u05D8) \u05D9\u05EA\u05D5\u05D5\u05E1\u05E3 \u05D1\u05D4\u05DE\u05E9\u05DA \u05E2\u05DD \u05D8\u05D1\u05DC\u05EA \u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D5\u05EA \u05D1\u05BESupabase."))));
 }
 
 /* ============ ׳”׳§׳׳” ============ */
@@ -6066,7 +6076,7 @@ const sb = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON
 function Setup() {
   return /*#__PURE__*/React.createElement("div", {
     className: "setup"
-  }, /*#__PURE__*/React.createElement("h2", null, "׳›׳׳¢׳˜ ׳׳•׳›׳"), /*#__PURE__*/React.createElement("p", null, "׳ ׳©׳׳¨ ׳¨׳§ ׳׳—׳‘׳¨ ׳׳‘׳¡׳™׳¡ ׳”׳ ׳×׳•׳ ׳™׳. ׳₪׳•׳×׳—׳™׳ ׳׳× ", /*#__PURE__*/React.createElement("code", null, "index.html"), " ׳•׳׳׳׳׳™׳ ׳׳׳¢׳׳” ׳׳×", /*#__PURE__*/React.createElement("code", null, "SUPABASE_ANON_KEY"), " (׳ײ¾Supabase ג†’ Project Settings ג†’ API). ׳©׳•׳׳¨׳™׳, ׳׳¨׳¢׳ ׳ ׳™׳ ג€” ׳•׳–׳”׳•."));
+  }, /*#__PURE__*/React.createElement("h2", null, "\u05DB\u05DE\u05E2\u05D8 \u05DE\u05D5\u05DB\u05DF"), /*#__PURE__*/React.createElement("p", null, "\u05E0\u05E9\u05D0\u05E8 \u05E8\u05E7 \u05DC\u05D7\u05D1\u05E8 \u05DC\u05D1\u05E1\u05D9\u05E1 \u05D4\u05E0\u05EA\u05D5\u05E0\u05D9\u05DD. \u05E4\u05D5\u05EA\u05D7\u05D9\u05DD \u05D0\u05EA ", /*#__PURE__*/React.createElement("code", null, "index.html"), " \u05D5\u05DE\u05DE\u05DC\u05D0\u05D9\u05DD \u05DC\u05DE\u05E2\u05DC\u05D4 \u05D0\u05EA", /*#__PURE__*/React.createElement("code", null, "SUPABASE_ANON_KEY"), " (\u05DE\u05BESupabase \u2192 Project Settings \u2192 API). \u05E9\u05D5\u05DE\u05E8\u05D9\u05DD, \u05DE\u05E8\u05E2\u05E0\u05E0\u05D9\u05DD \u2014 \u05D5\u05D6\u05D4\u05D5."));
 }
 
 /* ============ ׳”׳׳₪׳׳™׳§׳¦׳™׳” ============ */
@@ -7293,7 +7303,7 @@ function App() {
   }, /*#__PURE__*/React.createElement("img", {
     className: "logo-img",
     src: LOGO_MARK,
-    alt: "׳—׳׳´׳ ׳׳©׳₪׳—׳×׳™"
+    alt: "\u05D7\u05DE\u05F4\u05DC \u05DE\u05E9\u05E4\u05D7\u05EA\u05D9"
   })), /*#__PURE__*/React.createElement("span", {
     className: "live"
   }, /*#__PURE__*/React.createElement("span", {
@@ -7302,11 +7312,11 @@ function App() {
     className: "head-right"
   }, /*#__PURE__*/React.createElement("span", {
     className: "stat"
-  }, /*#__PURE__*/React.createElement("b", null, openCount), " ׳₪׳×׳•׳—׳•׳×"), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("b", null, openCount), " \u05E4\u05EA\u05D5\u05D7\u05D5\u05EA"), /*#__PURE__*/React.createElement("span", {
     className: "stat"
-  }, /*#__PURE__*/React.createElement("b", null, doneToday), " ׳”׳•׳©׳׳׳•"), /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement("b", null, doneToday), " \u05D4\u05D5\u05E9\u05DC\u05DE\u05D5"), /*#__PURE__*/React.createElement("button", {
     className: 'ibtn' + (pushPrefs.endpoint ? ' on' : ''),
-    title: "׳”׳×׳¨׳׳•׳×",
+    title: "\u05D4\u05EA\u05E8\u05D0\u05D5\u05EA",
     onClick: () => setPushOpen(true)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.bell,
@@ -7346,7 +7356,7 @@ function App() {
       className: "cnt"
     }, primaryCount(p.key)));
   }))), /*#__PURE__*/React.createElement("div", {
-    className: 'layout' + (isTasks ? '' : ' is-wide')
+    className: 'layout' + (isTasks ? '' : ' is-wide') + (aiOn ? ' min-bar' : '')
   }, isTasks && /*#__PURE__*/React.createElement(TagRail, {
     cats: smartCats,
     chips: chips,
@@ -7411,13 +7421,12 @@ function App() {
     style: {
       top: dropTarget.y
     }
-  }), taskList.map(it => /*#__PURE__*/React.createElement(Card, {
+  }), taskList.map(it => /*#__PURE__*/React.createElement(Card, _extends({
     key: it.id,
-    it: it,
-    ...cardProps
-  })), loaded && boardItems.length === 0 && /*#__PURE__*/React.createElement("div", {
+    it: it
+  }, cardProps))), loaded && boardItems.length === 0 && /*#__PURE__*/React.createElement("div", {
     className: "board-empty"
-  }, "׳׳™׳ ׳›׳׳ ׳¢׳“׳™׳™׳ ׳›׳׳•׳ ג€” ׳”׳•׳¡׳™׳₪׳• ׳₪׳¨׳™׳˜ ׳¨׳׳©׳•׳ ׳׳׳׳˜׳”."))), isTasks && !mobile && /*#__PURE__*/React.createElement("aside", {
+  }, "\u05D0\u05D9\u05DF \u05DB\u05D0\u05DF \u05E2\u05D3\u05D9\u05D9\u05DF \u05DB\u05DC\u05D5\u05DD \u2014 \u05D4\u05D5\u05E1\u05D9\u05E4\u05D5 \u05E4\u05E8\u05D9\u05D8 \u05E8\u05D0\u05E9\u05D5\u05DF \u05DE\u05DC\u05DE\u05D8\u05D4."))), isTasks && !mobile && /*#__PURE__*/React.createElement("aside", {
     className: "side"
   }, /*#__PURE__*/React.createElement(CalendarView, {
     items: items,
@@ -7430,7 +7439,7 @@ function App() {
     mobile: mobile,
     pin: "agenda"
   }))), notice && /*#__PURE__*/React.createElement("div", {
-    className: "toast",
+    className: 'toast' + (aiOn ? ' min-bar' : ''),
     onClick: () => setNotice('')
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.bell,
@@ -7461,7 +7470,7 @@ function App() {
     size: 15
   }), "AI"), aiOn && /*#__PURE__*/React.createElement("button", {
     className: "ai-gear",
-    title: "׳”׳’׳“׳¨׳•׳× ׳”׳—׳™׳‘׳•׳¨",
+    title: "\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA \u05D4\u05D7\u05D9\u05D1\u05D5\u05E8",
     onClick: () => setAiOpen(true)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.gear,
@@ -7479,11 +7488,11 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("option", {
     value: "task"
-  }, "׳׳©׳™׳׳•׳×"), /*#__PURE__*/React.createElement("option", {
+  }, "\u05DE\u05E9\u05D9\u05DE\u05D5\u05EA"), /*#__PURE__*/React.createElement("option", {
     value: "grocery:super"
-  }, "׳§׳ ׳™׳•׳× ֲ· ׳¡׳•׳₪׳¨"), /*#__PURE__*/React.createElement("option", {
+  }, "\u05E7\u05E0\u05D9\u05D5\u05EA \xB7 \u05E1\u05D5\u05E4\u05E8"), /*#__PURE__*/React.createElement("option", {
     value: "grocery:other"
-  }, "׳§׳ ׳™׳•׳× ֲ· ׳׳—׳¨"))), /*#__PURE__*/React.createElement("div", {
+  }, "\u05E7\u05E0\u05D9\u05D5\u05EA \xB7 \u05D0\u05D7\u05E8"))), /*#__PURE__*/React.createElement("div", {
     className: "who-pick"
   }, whoOptions.map(([val, mk]) => {
     const m = memberOf(mk);
@@ -7546,7 +7555,7 @@ function App() {
     className: "newtag"
   }, /*#__PURE__*/React.createElement("input", {
     value: newTagName,
-    placeholder: "׳×׳’ ׳—׳“׳©ג€¦",
+    placeholder: "\u05EA\u05D2 \u05D7\u05D3\u05E9\u2026",
     onChange: e => setNewTagName(e.target.value),
     onKeyDown: e => {
       if (e.key === 'Enter') {
@@ -7555,7 +7564,7 @@ function App() {
       }
     }
   }), /*#__PURE__*/React.createElement("button", {
-    title: "׳”׳•׳¡׳₪׳× ׳×׳’",
+    title: "\u05D4\u05D5\u05E1\u05E4\u05EA \u05EA\u05D2",
     disabled: !newTagName.trim(),
     onClick: addNewTag
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -7565,7 +7574,7 @@ function App() {
   })))))), /*#__PURE__*/React.createElement("button", {
     className: 'date-toggle' + (showDate ? ' on' : ''),
     onClick: () => setShowDate(s => !s),
-    title: "׳×׳׳¨׳™׳/׳©׳¢׳”"
+    title: "\u05EA\u05D0\u05E8\u05D9\u05DA/\u05E9\u05E2\u05D4"
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.cal,
     size: 17
@@ -7582,7 +7591,7 @@ function App() {
   }), /*#__PURE__*/React.createElement("select", {
     value: repeat,
     onChange: e => setRepeat(e.target.value),
-    title: "׳×׳“׳™׳¨׳•׳× ׳—׳–׳¨׳”"
+    title: "\u05EA\u05D3\u05D9\u05E8\u05D5\u05EA \u05D7\u05D6\u05E8\u05D4"
   }, REPEATS.map(r => /*#__PURE__*/React.createElement("option", {
     key: r.key || 'none',
     value: r.key
@@ -7599,15 +7608,15 @@ function App() {
         (aiOn ? askAI : add)();
       }
     },
-    placeholder: aiOn ? aiBusy ? '׳—׳•׳©׳‘ג€¦' : '׳›׳×׳‘׳• ׳‘׳©׳₪׳” ׳—׳•׳₪׳©׳™׳× ג€” "׳×׳–׳›׳™׳¨ ׳׳™ ׳׳—׳¨ ׳‘-8 ׳׳§׳—׳× ׳×׳¨׳•׳₪׳”", "׳׳§׳ ׳•׳× ׳—׳׳‘ ׳•׳׳—׳"ג€¦' : cat === 'grocery' ? '׳”׳•׳¡׳£ ׳׳•׳¦׳¨ ׳׳¨׳©׳™׳׳× ׳”׳§׳ ׳™׳•׳×ג€¦' : '׳׳” ׳׳”׳•׳¡׳™׳£ ׳׳—׳׳´׳?  (Shift+Enter = ׳©׳•׳¨׳” ׳—׳“׳©׳”)'
+    placeholder: aiOn ? aiBusy ? '׳—׳•׳©׳‘ג€¦' : mobile ? '׳׳” ׳׳”׳•׳¡׳™׳£? ׳›׳×׳‘׳• ׳—׳•׳₪׳©׳™ג€¦' : '׳›׳×׳‘׳• ׳‘׳©׳₪׳” ׳—׳•׳₪׳©׳™׳× ג€” "׳×׳–׳›׳™׳¨ ׳׳™ ׳׳—׳¨ ׳‘-8 ׳׳§׳—׳× ׳×׳¨׳•׳₪׳”", "׳׳§׳ ׳•׳× ׳—׳׳‘ ׳•׳׳—׳"ג€¦' : cat === 'grocery' ? '׳”׳•׳¡׳£ ׳׳•׳¦׳¨ ׳׳¨׳©׳™׳׳× ׳”׳§׳ ׳™׳•׳×ג€¦' : '׳׳” ׳׳”׳•׳¡׳™׳£ ׳׳—׳׳´׳?  (Shift+Enter = ׳©׳•׳¨׳” ׳—׳“׳©׳”)'
   }), /*#__PURE__*/React.createElement("button", {
     className: 'add-btn' + (aiOn ? ' ai' : '') + (aiBusy ? ' busy' : ''),
     onClick: aiOn ? askAI : add,
     disabled: aiBusy || !text.trim(),
     title: aiOn ? '׳©׳׳™׳—׳” ׳-AI' : '׳”׳•׳¡׳₪׳”'
   }, /*#__PURE__*/React.createElement(Icon, {
-    path: aiBusy ? I.undo : aiOn ? I.spark : I.plus,
-    size: aiOn ? 20 : 22,
+    path: aiBusy ? I.undo : aiOn && !mobile ? I.spark : I.plus,
+    size: aiOn && !mobile ? 20 : 22,
     stroke: 2.2
   }))))), aiOpen && /*#__PURE__*/React.createElement(AISetup, {
     cfg: ai,
@@ -7631,11 +7640,11 @@ function App() {
     style: {
       width: drag.w
     }
-  }, /*#__PURE__*/React.createElement(Card, {
-    it: draggedItem,
-    ...cardProps,
+  }, /*#__PURE__*/React.createElement(Card, _extends({
+    it: draggedItem
+  }, cardProps, {
     floating: true
-  })), editCats && /*#__PURE__*/React.createElement(CatEditor, {
+  }))), editCats && /*#__PURE__*/React.createElement(CatEditor, {
     cats: smartCats,
     onSave: saveCategories,
     onClose: () => setEditCats(false)
