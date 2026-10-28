@@ -1101,8 +1101,9 @@ function loadAI(){
     const p = JSON.parse(localStorage.getItem(AI_LS) || '{}') || {};
     const url = String(p.url || '').trim().replace(/\/+$/, '');
     /* מצב AI תמיד נפתח דלוק — גם אם בעבר כיבו אותו במכשיר הזה */
-    return { url, token: String(p.token || '').trim(), on: true };
-  }catch(e){ return { url:'', token:'', on:true }; }
+    const me = (p.me === 'yair' || p.me === 'tamar') ? p.me : '';
+    return { url, token: String(p.token || '').trim(), on: true, me };
+  }catch(e){ return { url:'', token:'', on:true, me:'' }; }
 }
 function saveAI(v){ try{ localStorage.setItem(AI_LS, JSON.stringify(v)); }catch(e){} }
 const aiReady = (c) => !!(c && c.url && c.token);
@@ -2276,15 +2277,21 @@ function AISetup({ cfg, onClose, onSave }){
   const [token, setToken] = useState(cfg.token || '');
   const [test, setTest] = useState('');
   const [code, setCode] = useState('');
+  const [me, setMe] = useState(cfg.me || '');
   const clean = url.trim().replace(/\/+$/, '');
-  /* הקוד מגיע מהבוט בוואטסאפ ("קוד לאפליקציה") — מדביקים, והכתובת והטוקן נמלאים לבד */
+  /* הקוד מגיע מהבוט בוואטסאפ ("קוד לאפליקציה") — מדביקים, והכתובת והטוקן נמלאים לבד.
+     הוא גם נושא "מי אני" (מי ביקש אותו), שנשמר במכשיר. */
   const pasteCode = (v) => {
     setCode(v);
     const m = String(v).trim().match(/^hamal-connect:([A-Za-z0-9+\/=_-]+)$/);
     if (!m) return;
     try{
       const j = JSON.parse(atob(m[1]));
-      if (j && j.u && j.t){ setUrl(String(j.u)); setToken(String(j.t)); setTest('✔ הקוד נקלט — לחצו שמירה'); }
+      if (j && j.u && j.t){
+        setUrl(String(j.u)); setToken(String(j.t));
+        if (j.m === 'yair' || j.m === 'tamar') setMe(j.m);
+        setTest('✔ הקוד נקלט — לחצו שמירה');
+      }
       else setTest('✖ הקוד לא תקין');
     }catch(e){ setTest('✖ הקוד לא תקין'); }
   };
@@ -2326,7 +2333,7 @@ function AISetup({ cfg, onClose, onSave }){
           {test && <div className={'aitest'+(test.startsWith('✔')?' ok':test.startsWith('✖')?' bad':'')}>{test}</div>}
           <div className="aibtns">
             <button className="cmb" onClick={check} disabled={!clean || !token.trim()}>בדיקת חיבור</button>
-            <button className="cmb on" onClick={()=>onSave({ url:clean, token:token.trim() })}
+            <button className="cmb on" onClick={()=>onSave({ url:clean, token:token.trim(), me })}
               disabled={!clean || !token.trim()}>שמירה</button>
           </div>
         </div>
@@ -2757,7 +2764,10 @@ function App(){
       const res = await fetch(ai.url + '/api/compose', {
         method:'POST', signal:ctrl.signal,
         headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+ai.token },
-        body: JSON.stringify({ text:raw, who: assignee === 'shared' ? '' : assignee }),
+        /* בנייד בורר "מי" מוסתר, אז הכותב הוא בעל המכשיר: מהקוד שחיבר אותו, ואם אין —
+           מהבחירה בהתראות. בלי זה הבוט לא יודע מי "לי" ב"תזכיר לי", ושולח push לשניכם. */
+        body: JSON.stringify({ text:raw, who: assignee === 'shared'
+          ? (ai.me || (pushPrefs && pushPrefs.member) || '') : assignee }),
       });
       clearTimeout(timer);
       let out = {};
@@ -3582,8 +3592,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
      עורכים את ה-JSX ולא מריצים את הבנייה מחדש, החתימה לא תתאים והאפליקציה
      תתרגם בעצמה בזמן ריצה — כלומר עריכה ישירה תמיד עובדת, רק לאט יותר.
      נבנה ע"י scripts/build-compiled.ps1 (ראו HANDOFF.md). -->
-<script type="text/plain" id="app-compiled" data-sig="18knuv8.189897">
-function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
+<script type="text/plain" id="app-compiled" data-sig="18rzj70.190396">
 const {
   useState,
   useEffect,
@@ -3803,16 +3812,19 @@ function loadAI() {
     const p = JSON.parse(localStorage.getItem(AI_LS) || '{}') || {};
     const url = String(p.url || '').trim().replace(/\/+$/, '');
     /* מצב AI תמיד נפתח דלוק — גם אם בעבר כיבו אותו במכשיר הזה */
+    const me = p.me === 'yair' || p.me === 'tamar' ? p.me : '';
     return {
       url,
       token: String(p.token || '').trim(),
-      on: true
+      on: true,
+      me
     };
   } catch (e) {
     return {
       url: '',
       token: '',
-      on: true
+      on: true,
+      me: ''
     };
   }
 }
@@ -4680,7 +4692,7 @@ const Card = React.memo(function Card({
   }) : /*#__PURE__*/React.createElement("div", {
     ref: titleRef,
     className: 'ttitle no-drag' + (openTxt ? ' open' : ''),
-    title: "\u05D4\u05E7\u05E9\u05D4 \u05DB\u05E4\u05D5\u05DC\u05D4 \u05DC\u05E2\u05E8\u05D9\u05DB\u05D4",
+    title: "הקשה כפולה לעריכה",
     onPointerDown: onTitleDown,
     onClick: () => setOpenTxt(o => !o)
   }, it.title), !editing && (clamped || openTxt) && /*#__PURE__*/React.createElement("div", {
@@ -4699,28 +4711,28 @@ const Card = React.memo(function Card({
     size: 12
   }), " ", cat.label), due && /*#__PURE__*/React.createElement("span", {
     className: 'tchip' + (floating ? '' : ' no-drag'),
-    title: "\u05EA\u05D3\u05D9\u05E8\u05D5\u05EA \u05D7\u05D6\u05E8\u05D4",
+    title: "תדירות חזרה",
     onClick: () => {
       if (!floating && onRepeat) openPop('repeat');
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.cal,
     size: 12
-  }), " ", fmtDate(due), " \xB7 ", fmtTime(due), rep && /*#__PURE__*/React.createElement("span", null, " \xB7 \uD83D\uDD01 ", REPEAT_LABEL[rep])), rem && /*#__PURE__*/React.createElement("span", {
+  }), " ", fmtDate(due), " · ", fmtTime(due), rep && /*#__PURE__*/React.createElement("span", null, " · 🔁 ", REPEAT_LABEL[rep])), rem && /*#__PURE__*/React.createElement("span", {
     className: 'tchip no-drag ' + (rem.sent ? 'rem-sent' : 'rem'),
-    title: "\u05DC\u05D7\u05D9\u05E6\u05D4 \u05DE\u05D1\u05D8\u05DC\u05EA \u05D0\u05EA \u05D4\u05EA\u05D6\u05DB\u05D5\u05E8\u05EA",
+    title: "לחיצה מבטלת את התזכורת",
     onClick: () => onRemind && onRemind(it, false)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.bell,
     size: 12
   }), " ", rem.sent ? 'תוזכר' : remLabel(rem.when, due)), !rem && due && /*#__PURE__*/React.createElement("span", {
     className: "tchip no-drag",
-    title: "\u05D4\u05E4\u05D5\u05DA \u05DC\u05EA\u05D6\u05DB\u05D5\u05E8\u05EA",
+    title: "הפוך לתזכורת",
     onClick: () => onRemind && onRemind(it, true)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.bell,
     size: 12
-  }), " \u05D4\u05D6\u05DB\u05E8 \u05DC\u05D9"), itemTags.map(k => {
+  }), " הזכר לי"), itemTags.map(k => {
     const c = catMap[k];
     if (!c) return null;
     return /*#__PURE__*/React.createElement("span", {
@@ -4749,39 +4761,39 @@ const Card = React.memo(function Card({
     size: 14
   }), /*#__PURE__*/React.createElement("span", {
     className: "lname"
-  }, loc), /*#__PURE__*/React.createElement("span", null, "\u05DE\u05E4\u05D4 \u2197")) : null), /*#__PURE__*/React.createElement("div", {
+  }, loc), /*#__PURE__*/React.createElement("span", null, "מפה ↗")) : null), /*#__PURE__*/React.createElement("div", {
     className: "tacts"
   }, !floating && (st === 'doing' ? /*#__PURE__*/React.createElement("button", {
     className: "ibtn doing on no-drag",
-    title: "\u05D4\u05D7\u05D6\u05E8 \u05DC\u05DC\u05D1\u05D9\u05E6\u05D5\u05E2",
+    title: "החזר ללביצוע",
     onClick: () => onStatus(it, 'todo')
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.undo,
     size: 15
   })) : /*#__PURE__*/React.createElement("button", {
     className: "ibtn doing no-drag",
-    title: "\u05D4\u05E2\u05D1\u05E8 \u05DC\u05D1\u05E2\u05D1\u05D5\u05D3\u05D4",
+    title: "העבר לבעבודה",
     onClick: () => onStatus(it, 'doing')
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.play,
     size: 14
   }))), !floating && /*#__PURE__*/React.createElement("button", {
     className: 'ibtn tag no-drag' + (tagOpen ? ' on' : ''),
-    title: "\u05EA\u05D9\u05D5\u05D2",
+    title: "תיוג",
     onClick: () => openPop('tag')
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.tag,
     size: 15
   })), !floating && /*#__PURE__*/React.createElement("button", {
     className: "ibtn del no-drag",
-    title: "\u05DE\u05D7\u05D9\u05E7\u05D4",
+    title: "מחיקה",
     onClick: () => onRemove(it)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.trash,
     size: 15
   })), !floating && onGripDown && /*#__PURE__*/React.createElement("span", {
     className: "tgrip",
-    title: "\u05D2\u05E8\u05D9\u05E8\u05D4 \u05DC\u05E1\u05D9\u05D3\u05D5\u05E8",
+    title: "גרירה לסידור",
     onPointerDown: e => onGripDown(e, it)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.grip,
@@ -4795,7 +4807,7 @@ const Card = React.memo(function Card({
     onClick: e => e.stopPropagation()
   }, /*#__PURE__*/React.createElement("div", {
     className: "h"
-  }, "\u05DB\u05DC \u05DB\u05DE\u05D4 \u05D6\u05DE\u05DF \u05DC\u05D7\u05D6\u05D5\u05E8?"), REPEATS.map(r => {
+  }, "כל כמה זמן לחזור?"), REPEATS.map(r => {
     const on = rep === r.key;
     return /*#__PURE__*/React.createElement("div", {
       key: r.key || 'none',
@@ -4823,7 +4835,7 @@ const Card = React.memo(function Card({
     onClick: e => e.stopPropagation()
   }, /*#__PURE__*/React.createElement("div", {
     className: "h"
-  }, "\u05EA\u05D9\u05D5\u05D2"), cats.filter(isSmartCat).map(c => {
+  }, "תיוג"), cats.filter(isSmartCat).map(c => {
     const on = itemTags.includes(c.key);
     return /*#__PURE__*/React.createElement("div", {
       key: c.key,
@@ -4851,7 +4863,7 @@ const Card = React.memo(function Card({
   }), /*#__PURE__*/React.createElement("button", {
     className: "done-btn",
     onClick: () => setTagOpen(false)
-  }, "\u05E1\u05D9\u05D5\u05DD"))));
+  }, "סיום"))));
 });
 
 /* שם המוצר — הקשה כפולה פותחת עריכה במקום, בדיוק כמו בכותרת של משימה */
@@ -4895,7 +4907,7 @@ function GName({
   });
   return /*#__PURE__*/React.createElement("span", {
     className: "gname",
-    title: "\u05D4\u05E7\u05E9\u05D4 \u05DB\u05E4\u05D5\u05DC\u05D4 \u05DC\u05E2\u05E8\u05D9\u05DB\u05D4",
+    title: "הקשה כפולה לעריכה",
     onPointerDown: onDown
   }, it.title);
 }
@@ -5081,9 +5093,9 @@ function ShoppingList({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: cat.icon,
     size: 17
-  })), "\u05E8\u05E9\u05D9\u05DE\u05EA \u05E7\u05E0\u05D9\u05D5\u05EA", /*#__PURE__*/React.createElement("span", {
+  })), "רשימת קניות", /*#__PURE__*/React.createElement("span", {
     className: "n"
-  }, active.length, " \u05DC\u05E7\u05E0\u05D9\u05D9\u05D4")), /*#__PURE__*/React.createElement("div", {
+  }, active.length, " לקנייה")), /*#__PURE__*/React.createElement("div", {
     className: "shop-switch"
   }, SHOP_LISTS.map(l => /*#__PURE__*/React.createElement("button", {
     key: l.key,
@@ -5098,7 +5110,7 @@ function ShoppingList({
     ref: bodyRef
   }, emptyAll && /*#__PURE__*/React.createElement("div", {
     className: "shop-empty"
-  }, meta.key === 'super' ? /*#__PURE__*/React.createElement(React.Fragment, null, "\u05E8\u05E9\u05D9\u05DE\u05EA \u05D4\u05E1\u05D5\u05E4\u05E8 \u05E8\u05D9\u05E7\u05D4 \uD83D\uDED2", /*#__PURE__*/React.createElement("br", null), "\u05D4\u05D5\u05E1\u05D9\u05E4\u05D5 \u05DE\u05D5\u05E6\u05E8 \u05DE\u05DC\u05DE\u05D8\u05D4 \u2014 \u05D4\u05D5\u05D0 \u05D9\u05E1\u05D5\u05D3\u05E8 \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9\u05EA \u05DC\u05E4\u05D9 \u05DE\u05D7\u05DC\u05E7\u05D5\u05EA \u05D4\u05D7\u05E0\u05D5\u05EA.") : /*#__PURE__*/React.createElement(React.Fragment, null, "\u05D0\u05D9\u05DF \u05DB\u05D0\u05DF \u05DB\u05DC\u05D5\u05DD \uD83C\uDFF7\uFE0F", /*#__PURE__*/React.createElement("br", null), "\u05D1\u05D2\u05D3\u05D9\u05DD, \u05D0\u05DC\u05E7\u05D8\u05E8\u05D5\u05E0\u05D9\u05E7\u05D4, \u05E6\u05D9\u05D5\u05D3 \u05DC\u05D1\u05D9\u05EA \u2014 \u05DB\u05DC \u05DE\u05D4 \u05E9\u05DC\u05D0 \u05E0\u05E7\u05E0\u05D4 \u05D1\u05E1\u05D5\u05E4\u05E8.")), drop && /*#__PURE__*/React.createElement("div", {
+  }, meta.key === 'super' ? /*#__PURE__*/React.createElement(React.Fragment, null, "רשימת הסופר ריקה 🛒", /*#__PURE__*/React.createElement("br", null), "הוסיפו מוצר מלמטה — הוא יסודר אוטומטית לפי מחלקות החנות.") : /*#__PURE__*/React.createElement(React.Fragment, null, "אין כאן כלום 🏷️", /*#__PURE__*/React.createElement("br", null), "בגדים, אלקטרוניקה, ציוד לבית — כל מה שלא נקנה בסופר.")), drop && /*#__PURE__*/React.createElement("div", {
     className: "shop-drop",
     style: {
       top: drop.y
@@ -5127,7 +5139,7 @@ function ShoppingList({
         }
       }, /*#__PURE__*/React.createElement("span", {
         className: "ghandle",
-        title: "\u05D2\u05E8\u05D9\u05E8\u05D4 \u05DC\u05E1\u05D9\u05D3\u05D5\u05E8",
+        title: "גרירה לסידור",
         onPointerDown: e => onGrip(e, it)
       }, /*#__PURE__*/React.createElement(Icon, {
         path: I.grip,
@@ -5135,7 +5147,7 @@ function ShoppingList({
         stroke: 2.4
       })), /*#__PURE__*/React.createElement("span", {
         className: "gbox",
-        title: "\u05E0\u05E7\u05E0\u05D4",
+        title: "נקנה",
         onClick: () => onToggle(it, true)
       }), /*#__PURE__*/React.createElement("div", {
         className: "gmain"
@@ -5151,7 +5163,7 @@ function ShoppingList({
         className: "qty"
       }, /*#__PURE__*/React.createElement("button", {
         className: "qbtn",
-        title: "\u05E4\u05D7\u05D5\u05EA",
+        title: "פחות",
         onClick: () => onQty(it, -1),
         disabled: q <= 1
       }, /*#__PURE__*/React.createElement(Icon, {
@@ -5162,7 +5174,7 @@ function ShoppingList({
         className: "qn"
       }, q), /*#__PURE__*/React.createElement("button", {
         className: "qbtn",
-        title: "\u05E2\u05D5\u05D3",
+        title: "עוד",
         onClick: () => onQty(it, 1)
       }, /*#__PURE__*/React.createElement(Icon, {
         path: I.plus,
@@ -5177,7 +5189,7 @@ function ShoppingList({
         size: 15
       })), /*#__PURE__*/React.createElement("button", {
         className: "ibtn del",
-        title: "\u05DE\u05D7\u05D9\u05E7\u05D4",
+        title: "מחיקה",
         onClick: () => onRemove(it)
       }, /*#__PURE__*/React.createElement(Icon, {
         path: I.trash,
@@ -5186,12 +5198,12 @@ function ShoppingList({
     }));
   }), bought.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "shop-sep"
-  }, "\u05E0\u05E8\u05DB\u05E9\u05D5 (", bought.length, ")"), bought.map(it => /*#__PURE__*/React.createElement("div", {
+  }, "נרכשו (", bought.length, ")"), bought.map(it => /*#__PURE__*/React.createElement("div", {
     className: "gitem bought",
     key: it.id
   }, /*#__PURE__*/React.createElement("span", {
     className: "gbox",
-    title: "\u05D4\u05D7\u05D6\u05E8 \u05DC\u05E8\u05E9\u05D9\u05DE\u05D4",
+    title: "החזר לרשימה",
     onClick: () => onToggle(it, false)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.check,
@@ -5202,9 +5214,9 @@ function ShoppingList({
     onEdit: onEditTitle
   }), qtyOf(it) > 1 && /*#__PURE__*/React.createElement("span", {
     className: "gqty"
-  }, "\xD7", qtyOf(it)), /*#__PURE__*/React.createElement("button", {
+  }, "×", qtyOf(it)), /*#__PURE__*/React.createElement("button", {
     className: "ibtn del",
-    title: "\u05DE\u05D7\u05D9\u05E7\u05D4",
+    title: "מחיקה",
     onClick: () => onRemove(it)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.trash,
@@ -5221,7 +5233,7 @@ function ShoppingList({
     className: "gname"
   }, drag.title), drag.qty > 1 && /*#__PURE__*/React.createElement("span", {
     className: "gqty"
-  }, "\xD7", drag.qty))));
+  }, "×", drag.qty))));
 }
 
 /* ============ תצוגת יומן ============
@@ -5495,16 +5507,16 @@ function CalendarView({
     className: "calnav"
   }, effMode !== 'agenda' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
     className: "cnb",
-    title: "\u05E7\u05D5\u05D3\u05DD",
+    title: "קודם",
     onClick: () => setOffset(o => o - 1)
-  }, "\u2039"), /*#__PURE__*/React.createElement("button", {
+  }, "‹"), /*#__PURE__*/React.createElement("button", {
     className: "cnb today",
     onClick: () => setOffset(0)
-  }, "\u05D4\u05D9\u05D5\u05DD"), /*#__PURE__*/React.createElement("button", {
+  }, "היום"), /*#__PURE__*/React.createElement("button", {
     className: "cnb",
-    title: "\u05D4\u05D1\u05D0",
+    title: "הבא",
     onClick: () => setOffset(o => o + 1)
-  }, "\u203A")), /*#__PURE__*/React.createElement("span", {
+  }, "›")), /*#__PURE__*/React.createElement("span", {
     className: "crng"
   }, rangeLabel))), !wide && /*#__PURE__*/React.createElement("div", {
     className: "calf"
@@ -5515,7 +5527,7 @@ function CalendarView({
     return g && (g.all.length || g.timed.length);
   }).length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "side-empty"
-  }, "\u05D0\u05D9\u05DF \u05D0\u05D9\u05E8\u05D5\u05E2\u05D9\u05DD \u05D1\u05D8\u05D5\u05D5\u05D7 \u05D4\u05D6\u05D4.") : days.map(d => {
+  }, "אין אירועים בטווח הזה.") : days.map(d => {
     const g = byDay[dayId(d)] || {
       all: [],
       timed: []
@@ -5554,15 +5566,15 @@ function CalendarView({
       className: "mtag"
     }, e.ev.calendar_label || 'יומן') : e.occurrence ? /*#__PURE__*/React.createElement("span", {
       className: "mtag rem"
-    }, "\uD83D\uDD01 ", REPEAT_LABEL[e.repeat]) : /*#__PURE__*/React.createElement("span", {
+    }, "🔁 ", REPEAT_LABEL[e.repeat]) : /*#__PURE__*/React.createElement("span", {
       className: 'mtag' + (e.rem ? ' rem' : '')
     }, e.rem ? e.rem.sent ? 'התזכורת נשלחה' : 'תזכורת בוואטסאפ' : 'ללא תזכורת'), e.repeat && !e.occurrence && /*#__PURE__*/React.createElement("span", {
       className: "mtag"
-    }, "\uD83D\uDD01 ", REPEAT_LABEL[e.repeat]), e.loc && /*#__PURE__*/React.createElement("span", {
+    }, "🔁 ", REPEAT_LABEL[e.repeat]), e.loc && /*#__PURE__*/React.createElement("span", {
       className: "mtag"
     }, e.loc))), /*#__PURE__*/React.createElement("button", {
       className: "ax",
-      title: "\u05D4\u05E1\u05EA\u05E8 \u05DE\u05D4\u05DC\u05D5\"\u05D6",
+      title: "הסתר מהלו\"ז",
       onClick: () => removeOf(e)
     }, /*#__PURE__*/React.createElement(Icon, {
       path: I.x,
@@ -5592,7 +5604,7 @@ function CalendarView({
     }, hebDate(d)));
   }), /*#__PURE__*/React.createElement("div", {
     className: "allday-lbl"
-  }, "\u05DB\u05DC \u05D4\u05D9\u05D5\u05DD"), days.map(d => {
+  }, "כל היום"), days.map(d => {
     const g = byDay[dayId(d)] || {
       all: []
     };
@@ -5652,7 +5664,7 @@ function CalendarView({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.cal,
     size: 13
-  }), "\u05E2\u05D5\u05D3 ", hiddenByOwner, " ", hiddenByOwner === 1 ? 'אירוע' : 'אירועים', " \u05D1\u05D9\u05D5\u05DE\u05E0\u05D9\u05DD \u05DB\u05D1\u05D5\u05D9\u05D9\u05DD \u2014 \u05D4\u05D3\u05DC\u05E7 \u05D4\u05DB\u05DC"));
+  }), "עוד ", hiddenByOwner, " ", hiddenByOwner === 1 ? 'אירוע' : 'אירועים', " ביומנים כבויים — הדלק הכל"));
 }
 
 /* תיוג דלוק במסילה לובש את הצבע של התיוג עצמו — בדיוק כמו הצ'יפ שעל השורה
@@ -5683,9 +5695,9 @@ function TagRail({
   }, /*#__PURE__*/React.createElement("h4", null, /*#__PURE__*/React.createElement(Icon, {
     path: I.tag,
     size: 12
-  }), " \u05EA\u05D9\u05D5\u05D2\u05D9\u05DD", /*#__PURE__*/React.createElement("button", {
+  }), " תיוגים", /*#__PURE__*/React.createElement("button", {
     className: "g",
-    title: "\u05E2\u05E8\u05D9\u05DB\u05EA \u05EA\u05D9\u05D5\u05D2\u05D9\u05DD",
+    title: "עריכת תיוגים",
     onClick: onEdit
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.gear,
@@ -5733,7 +5745,7 @@ function TagRail({
   }), chips.length > 0 && /*#__PURE__*/React.createElement("button", {
     className: "clr",
     onClick: onClear
-  }, "\u05E0\u05D9\u05E7\u05D5\u05D9 \u05D4\u05E1\u05D9\u05E0\u05D5\u05DF (", chips.length, ")"));
+  }, "ניקוי הסינון (", chips.length, ")"));
 }
 
 /* ============ הגדרת החיבור לשורת ה-AI ============
@@ -5748,8 +5760,10 @@ function AISetup({
   const [token, setToken] = useState(cfg.token || '');
   const [test, setTest] = useState('');
   const [code, setCode] = useState('');
+  const [me, setMe] = useState(cfg.me || '');
   const clean = url.trim().replace(/\/+$/, '');
-  /* הקוד מגיע מהבוט בוואטסאפ ("קוד לאפליקציה") — מדביקים, והכתובת והטוקן נמלאים לבד */
+  /* הקוד מגיע מהבוט בוואטסאפ ("קוד לאפליקציה") — מדביקים, והכתובת והטוקן נמלאים לבד.
+     הוא גם נושא "מי אני" (מי ביקש אותו), שנשמר במכשיר. */
   const pasteCode = v => {
     setCode(v);
     const m = String(v).trim().match(/^hamal-connect:([A-Za-z0-9+\/=_-]+)$/);
@@ -5759,6 +5773,7 @@ function AISetup({
       if (j && j.u && j.t) {
         setUrl(String(j.u));
         setToken(String(j.t));
+        if (j.m === 'yair' || j.m === 'tamar') setMe(j.m);
         setTest('✔ הקוד נקלט — לחצו שמירה');
       } else setTest('✖ הקוד לא תקין');
     } catch (e) {
@@ -5795,7 +5810,7 @@ function AISetup({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.spark,
     size: 19
-  }), " \u05E9\u05D5\u05E8\u05EA AI", /*#__PURE__*/React.createElement("button", {
+  }), " שורת AI", /*#__PURE__*/React.createElement("button", {
     className: "ibtn x",
     onClick: onClose
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -5805,18 +5820,18 @@ function AISetup({
     className: "modal-body"
   }, /*#__PURE__*/React.createElement("p", {
     className: "aihelp"
-  }, "\u05D4\u05D1\u05E7\u05E9\u05D5\u05EA \u05E0\u05E9\u05DC\u05D7\u05D5\u05EA \u05DC\u05D1\u05D5\u05D8 \u05E9\u05DC\u05DB\u05DD, \u05D5\u05E9\u05DD \u05D9\u05D5\u05E9\u05D1 \u05DE\u05E4\u05EA\u05D7 Gemini \u2014 \u05D4\u05D5\u05D0 \u05DC\u05D0 \u05DE\u05D2\u05D9\u05E2 \u05DC\u05D3\u05E4\u05D3\u05E4\u05DF. \u05D4\u05DB\u05EA\u05D5\u05D1\u05EA \u05D5\u05D4\u05D8\u05D5\u05E7\u05DF \u05E0\u05E9\u05DE\u05E8\u05D9\u05DD \u05D1\u05DE\u05DB\u05E9\u05D9\u05E8 \u05D4\u05D6\u05D4 \u05D1\u05DC\u05D1\u05D3."), /*#__PURE__*/React.createElement("label", {
+  }, "הבקשות נשלחות לבוט שלכם, ושם יושב מפתח Gemini — הוא לא מגיע לדפדפן. הכתובת והטוקן נשמרים במכשיר הזה בלבד."), /*#__PURE__*/React.createElement("label", {
     className: "ailbl"
-  }, "\u05E7\u05D5\u05D3 \u05D7\u05D9\u05D1\u05D5\u05E8 \u2014 \u05E9\u05DC\u05D7\u05D5 \u05DC\u05D1\u05D5\u05D8 \u05D1\u05E4\u05E8\u05D8\u05D9 \"\u05E7\u05D5\u05D3 \u05DC\u05D0\u05E4\u05DC\u05D9\u05E7\u05E6\u05D9\u05D4\" \u05D5\u05D4\u05D3\u05D1\u05D9\u05E7\u05D5 \u05DB\u05D0\u05DF"), /*#__PURE__*/React.createElement("input", {
+  }, "קוד חיבור — שלחו לבוט בפרטי \"קוד לאפליקציה\" והדביקו כאן"), /*#__PURE__*/React.createElement("input", {
     className: "aiinp",
     value: code,
     onChange: e => pasteCode(e.target.value),
-    placeholder: "hamal-connect:\u2026",
+    placeholder: "hamal-connect:…",
     dir: "ltr",
     autoComplete: "off"
   }), /*#__PURE__*/React.createElement("label", {
     className: "ailbl"
-  }, "\u05DB\u05EA\u05D5\u05D1\u05EA \u05D4\u05D1\u05D5\u05D8"), /*#__PURE__*/React.createElement("input", {
+  }, "כתובת הבוט"), /*#__PURE__*/React.createElement("input", {
     className: "aiinp",
     value: url,
     onChange: e => setUrl(e.target.value),
@@ -5824,11 +5839,11 @@ function AISetup({
     dir: "ltr"
   }), /*#__PURE__*/React.createElement("label", {
     className: "ailbl"
-  }, "\u05D8\u05D5\u05E7\u05DF (APP_TOKEN \u05E9\u05D4\u05D2\u05D3\u05E8\u05EA\u05DD \u05D1-Railway)"), /*#__PURE__*/React.createElement("input", {
+  }, "טוקן (APP_TOKEN שהגדרתם ב-Railway)"), /*#__PURE__*/React.createElement("input", {
     className: "aiinp",
     value: token,
     onChange: e => setToken(e.target.value),
-    placeholder: "\u05DE\u05D7\u05E8\u05D5\u05D6\u05EA \u05E1\u05D5\u05D3\u05D9\u05EA",
+    placeholder: "מחרוזת סודית",
     dir: "ltr",
     type: "password"
   }), test && /*#__PURE__*/React.createElement("div", {
@@ -5839,14 +5854,15 @@ function AISetup({
     className: "cmb",
     onClick: check,
     disabled: !clean || !token.trim()
-  }, "\u05D1\u05D3\u05D9\u05E7\u05EA \u05D7\u05D9\u05D1\u05D5\u05E8"), /*#__PURE__*/React.createElement("button", {
+  }, "בדיקת חיבור"), /*#__PURE__*/React.createElement("button", {
     className: "cmb on",
     onClick: () => onSave({
       url: clean,
-      token: token.trim()
+      token: token.trim(),
+      me
     }),
     disabled: !clean || !token.trim()
-  }, "\u05E9\u05DE\u05D9\u05E8\u05D4")))));
+  }, "שמירה")))));
 }
 
 /* התראות Push. מראה בלבד למה שהבוט כבר שולח בוואטסאפ — לא ערוץ חדש.
@@ -5953,7 +5969,7 @@ function PushSetup({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.bell,
     size: 19
-  }), " \u05D4\u05EA\u05E8\u05D0\u05D5\u05EA", /*#__PURE__*/React.createElement("button", {
+  }), " התראות", /*#__PURE__*/React.createElement("button", {
     className: "ibtn x",
     onClick: onClose
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -5963,36 +5979,36 @@ function PushSetup({
     className: "modal-body"
   }, /*#__PURE__*/React.createElement("p", {
     className: "aihelp"
-  }, "\u05DB\u05DC \u05DE\u05D4 \u05E9\u05D4\u05D1\u05D5\u05D8 \u05E9\u05D5\u05DC\u05D7 \u05D1\u05D5\u05D5\u05D0\u05D8\u05E1\u05D0\u05E4 \u05D9\u05D2\u05D9\u05E2 \u05D2\u05DD \u05DB\u05D4\u05EA\u05E8\u05D0\u05D4 \u05DC\u05DE\u05DB\u05E9\u05D9\u05E8 \u05D4\u05D6\u05D4."), !standalone && /*#__PURE__*/React.createElement("p", {
+  }, "כל מה שהבוט שולח בוואטסאפ יגיע גם כהתראה למכשיר הזה."), !standalone && /*#__PURE__*/React.createElement("p", {
     className: "aihelp"
-  }, "\u26A0\uFE0F \u05D1\u05D0\u05D9\u05D9\u05E4\u05D5\u05DF \u05D6\u05D4 \u05E2\u05D5\u05D1\u05D3 \u05E8\u05E7 \u05D3\u05E8\u05DA \u05D0\u05D9\u05D9\u05E7\u05D5\u05DF \u05E9\u05E0\u05D5\u05E1\u05E3 \u05DC\u05DE\u05E1\u05DA \u05D4\u05D1\u05D9\u05EA: \u05E1\u05E4\u05D0\u05E8\u05D9 \u2190 \u05E9\u05D9\u05EA\u05D5\u05E3 \u2190 \u05D4\u05D5\u05E1\u05E3 \u05DC\u05DE\u05E1\u05DA \u05D4\u05D1\u05D9\u05EA. \u05DB\u05E8\u05D5\u05DD \u05DC\u05D0 \u05EA\u05D5\u05DE\u05DA \u05D1\u05D4\u05EA\u05E8\u05D0\u05D5\u05EA push \u05DB\u05DC\u05DC \u05D1-iOS."), /*#__PURE__*/React.createElement("label", {
+  }, "⚠️ באייפון זה עובד רק דרך אייקון שנוסף למסך הבית: ספארי ← שיתוף ← הוסף למסך הבית. כרום לא תומך בהתראות push כלל ב-iOS."), /*#__PURE__*/React.createElement("label", {
     className: "ailbl"
-  }, "\u05DE\u05D9 \u05D0\u05EA\u05DD?"), /*#__PURE__*/React.createElement("div", {
+  }, "מי אתם?"), /*#__PURE__*/React.createElement("div", {
     className: "aibtns"
   }, /*#__PURE__*/React.createElement("button", {
     className: 'cmb' + (member === 'yair' ? ' on' : ''),
     onClick: () => setMember('yair')
-  }, "\u05D9\u05D0\u05D9\u05E8"), /*#__PURE__*/React.createElement("button", {
+  }, "יאיר"), /*#__PURE__*/React.createElement("button", {
     className: 'cmb' + (member === 'tamar' ? ' on' : ''),
     onClick: () => setMember('tamar')
-  }, "\u05EA\u05DE\u05E8")), status === 'on' && /*#__PURE__*/React.createElement("div", {
+  }, "תמר")), status === 'on' && /*#__PURE__*/React.createElement("div", {
     className: "aitest ok"
-  }, "\u2714 \u05D4\u05D4\u05EA\u05E8\u05D0\u05D5\u05EA \u05E4\u05E2\u05D9\u05DC\u05D5\u05EA \u05D1\u05DE\u05DB\u05E9\u05D9\u05E8 \u05D4\u05D6\u05D4"), status === 'unsupported' && /*#__PURE__*/React.createElement("div", {
+  }, "✔ ההתראות פעילות במכשיר הזה"), status === 'unsupported' && /*#__PURE__*/React.createElement("div", {
     className: "aitest bad"
-  }, "\u2716 \u05D4\u05D3\u05E4\u05D3\u05E4\u05DF \u05D4\u05D6\u05D4 \u05DC\u05D0 \u05EA\u05D5\u05DE\u05DA \u05D1\u05D4\u05EA\u05E8\u05D0\u05D5\u05EA"), status === 'need-install' && /*#__PURE__*/React.createElement("div", {
+  }, "✖ הדפדפן הזה לא תומך בהתראות"), status === 'need-install' && /*#__PURE__*/React.createElement("div", {
     className: "aitest bad"
-  }, "\u2716 \u05E7\u05D5\u05D3\u05DD \u05E6\u05E8\u05D9\u05DA \u05DC\u05D4\u05D5\u05E1\u05D9\u05E3 \u05DC\u05DE\u05E1\u05DA \u05D4\u05D1\u05D9\u05EA (\u05E8\u05D0\u05D5 \u05DC\u05DE\u05E2\u05DC\u05D4)"), status === 'denied' && /*#__PURE__*/React.createElement("div", {
+  }, "✖ קודם צריך להוסיף למסך הבית (ראו למעלה)"), status === 'denied' && /*#__PURE__*/React.createElement("div", {
     className: "aitest bad"
-  }, "\u2716 \u05D4\u05D4\u05E8\u05E9\u05D0\u05D4 \u05E0\u05D3\u05D7\u05EA\u05D4 \u2014 \u05D0\u05E4\u05E9\u05E8 \u05DC\u05E9\u05E0\u05D5\u05EA \u05D1\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA \u05D4\u05D3\u05E4\u05D3\u05E4\u05DF"), status === 'need-member' && /*#__PURE__*/React.createElement("div", {
+  }, "✖ ההרשאה נדחתה — אפשר לשנות בהגדרות הדפדפן"), status === 'need-member' && /*#__PURE__*/React.createElement("div", {
     className: "aitest bad"
-  }, "\u2716 \u05D1\u05D7\u05E8\u05D5 \u05E7\u05D5\u05D3\u05DD \u05DE\u05D9 \u05D0\u05EA\u05DD"), status.indexOf('error:') === 0 && /*#__PURE__*/React.createElement("div", {
+  }, "✖ בחרו קודם מי אתם"), status.indexOf('error:') === 0 && /*#__PURE__*/React.createElement("div", {
     className: "aitest bad"
-  }, "\u2716 ", status.slice(6)), /*#__PURE__*/React.createElement("div", {
+  }, "✖ ", status.slice(6)), /*#__PURE__*/React.createElement("div", {
     className: "aibtns"
   }, status === 'on' ? /*#__PURE__*/React.createElement("button", {
     className: "cmb",
     onClick: unsubscribe
-  }, "\u05DB\u05D9\u05D1\u05D5\u05D9 \u05D4\u05EA\u05E8\u05D0\u05D5\u05EA") : /*#__PURE__*/React.createElement("button", {
+  }, "כיבוי התראות") : /*#__PURE__*/React.createElement("button", {
     className: "cmb on",
     onClick: subscribe,
     disabled: status === 'checking'
@@ -6016,11 +6032,11 @@ function ActivityFeed({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.radio,
     size: 17
-  })), " \u05E4\u05E2\u05D9\u05DC\u05D5\u05EA \u05D0\u05D7\u05E8\u05D5\u05E0\u05D4"), /*#__PURE__*/React.createElement("div", {
+  })), " פעילות אחרונה"), /*#__PURE__*/React.createElement("div", {
     className: "panel-body"
   }, activities.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "side-empty"
-  }, "\u05D0\u05D9\u05DF \u05E2\u05D3\u05D9\u05D9\u05DF \u05E4\u05E2\u05D9\u05DC\u05D5\u05EA.", /*#__PURE__*/React.createElement("br", null), "\u05DB\u05DC \u05E9\u05D9\u05E0\u05D5\u05D9 \u05D9\u05D5\u05E4\u05D9\u05E2 \u05DB\u05D0\u05DF \u05D1\u05D6\u05DE\u05DF \u05D0\u05DE\u05EA.") : activities.map(a => {
+  }, "אין עדיין פעילות.", /*#__PURE__*/React.createElement("br", null), "כל שינוי יופיע כאן בזמן אמת.") : activities.map(a => {
     const m = memberOf(a.who);
     return /*#__PURE__*/React.createElement("div", {
       className: "act-item",
@@ -6085,7 +6101,7 @@ function CatEditor({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.gear,
     size: 19
-  }), " \u05E2\u05E8\u05D9\u05DB\u05EA \u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D5\u05EA", /*#__PURE__*/React.createElement("button", {
+  }), " עריכת קטגוריות", /*#__PURE__*/React.createElement("button", {
     className: "ibtn x",
     onClick: onClose
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -6103,7 +6119,7 @@ function CatEditor({
       background: hexA(c.color, 0.2),
       color: c.color
     },
-    title: "\u05E6\u05D1\u05E2 \u05D5\u05E1\u05DE\u05DC",
+    title: "צבע וסמל",
     onClick: () => setOpenIdx(openIdx === i ? -1 : i)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: c.icon,
@@ -6116,7 +6132,7 @@ function CatEditor({
     })
   }), /*#__PURE__*/React.createElement("button", {
     className: "ibtn del",
-    title: "\u05DE\u05D7\u05D9\u05E7\u05D4",
+    title: "מחיקה",
     onClick: () => del(i)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.trash,
@@ -6125,7 +6141,7 @@ function CatEditor({
     className: "cat-exp"
   }, /*#__PURE__*/React.createElement("div", {
     className: "exp-lbl"
-  }, "\u05E6\u05D1\u05E2"), /*#__PURE__*/React.createElement("div", {
+  }, "צבע"), /*#__PURE__*/React.createElement("div", {
     className: "sw-grid"
   }, PALETTE.map(hx => /*#__PURE__*/React.createElement("button", {
     key: hx,
@@ -6138,7 +6154,7 @@ function CatEditor({
     })
   }))), /*#__PURE__*/React.createElement("div", {
     className: "exp-lbl"
-  }, "\u05E1\u05DE\u05DC"), /*#__PURE__*/React.createElement("div", {
+  }, "סמל"), /*#__PURE__*/React.createElement("div", {
     className: "ic-grid"
   }, ICON_CHOICES.map((ic, ii) => /*#__PURE__*/React.createElement("button", {
     key: ii,
@@ -6161,12 +6177,12 @@ function CatEditor({
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.plus,
     size: 16
-  }), " \u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D4 \u05D7\u05D3\u05E9\u05D4"), /*#__PURE__*/React.createElement("button", {
+  }), " קטגוריה חדשה"), /*#__PURE__*/React.createElement("button", {
     className: "btn-fill",
     onClick: save
-  }, "\u05E9\u05DE\u05D9\u05E8\u05D4")), /*#__PURE__*/React.createElement("div", {
+  }, "שמירה")), /*#__PURE__*/React.createElement("div", {
     className: "modal-note"
-  }, "\u05D4\u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D5\u05EA \u05E0\u05E9\u05DE\u05E8\u05D5\u05EA \u05D1\u05DE\u05DB\u05E9\u05D9\u05E8 \u05D4\u05D6\u05D4. \u05E1\u05E0\u05DB\u05E8\u05D5\u05DF \u05D1\u05D9\u05DF \u05DE\u05DB\u05E9\u05D9\u05E8\u05D9\u05DD (\u05D5\u05D2\u05DD \u05DC\u05D1\u05D5\u05D8) \u05D9\u05EA\u05D5\u05D5\u05E1\u05E3 \u05D1\u05D4\u05DE\u05E9\u05DA \u05E2\u05DD \u05D8\u05D1\u05DC\u05EA \u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D5\u05EA \u05D1\u05BESupabase."))));
+  }, "הקטגוריות נשמרות במכשיר הזה. סנכרון בין מכשירים (וגם לבוט) יתווסף בהמשך עם טבלת קטגוריות ב־Supabase."))));
 }
 
 /* ============ הקמה ============ */
@@ -6175,7 +6191,7 @@ const sb = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON
 function Setup() {
   return /*#__PURE__*/React.createElement("div", {
     className: "setup"
-  }, /*#__PURE__*/React.createElement("h2", null, "\u05DB\u05DE\u05E2\u05D8 \u05DE\u05D5\u05DB\u05DF"), /*#__PURE__*/React.createElement("p", null, "\u05E0\u05E9\u05D0\u05E8 \u05E8\u05E7 \u05DC\u05D7\u05D1\u05E8 \u05DC\u05D1\u05E1\u05D9\u05E1 \u05D4\u05E0\u05EA\u05D5\u05E0\u05D9\u05DD. \u05E4\u05D5\u05EA\u05D7\u05D9\u05DD \u05D0\u05EA ", /*#__PURE__*/React.createElement("code", null, "index.html"), " \u05D5\u05DE\u05DE\u05DC\u05D0\u05D9\u05DD \u05DC\u05DE\u05E2\u05DC\u05D4 \u05D0\u05EA", /*#__PURE__*/React.createElement("code", null, "SUPABASE_ANON_KEY"), " (\u05DE\u05BESupabase \u2192 Project Settings \u2192 API). \u05E9\u05D5\u05DE\u05E8\u05D9\u05DD, \u05DE\u05E8\u05E2\u05E0\u05E0\u05D9\u05DD \u2014 \u05D5\u05D6\u05D4\u05D5."));
+  }, /*#__PURE__*/React.createElement("h2", null, "כמעט מוכן"), /*#__PURE__*/React.createElement("p", null, "נשאר רק לחבר לבסיס הנתונים. פותחים את ", /*#__PURE__*/React.createElement("code", null, "index.html"), " וממלאים למעלה את", /*#__PURE__*/React.createElement("code", null, "SUPABASE_ANON_KEY"), " (מ־Supabase → Project Settings → API). שומרים, מרעננים — וזהו."));
 }
 
 /* ============ האפליקציה ============ */
@@ -6510,9 +6526,11 @@ function App() {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + ai.token
         },
+        /* בנייד בורר "מי" מוסתר, אז הכותב הוא בעל המכשיר: מהקוד שחיבר אותו, ואם אין —
+           מהבחירה בהתראות. בלי זה הבוט לא יודע מי "לי" ב"תזכיר לי", ושולח push לשניכם. */
         body: JSON.stringify({
           text: raw,
-          who: assignee === 'shared' ? '' : assignee
+          who: assignee === 'shared' ? ai.me || pushPrefs && pushPrefs.member || '' : assignee
         })
       });
       clearTimeout(timer);
@@ -7426,7 +7444,7 @@ function App() {
   }, /*#__PURE__*/React.createElement("img", {
     className: "logo-img",
     src: LOGO_MARK,
-    alt: "\u05D7\u05DE\u05F4\u05DC \u05DE\u05E9\u05E4\u05D7\u05EA\u05D9"
+    alt: "חמ״ל משפחתי"
   })), /*#__PURE__*/React.createElement("span", {
     className: "live"
   }, /*#__PURE__*/React.createElement("span", {
@@ -7435,11 +7453,11 @@ function App() {
     className: "head-right"
   }, /*#__PURE__*/React.createElement("span", {
     className: "stat"
-  }, /*#__PURE__*/React.createElement("b", null, openCount), " \u05E4\u05EA\u05D5\u05D7\u05D5\u05EA"), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("b", null, openCount), " פתוחות"), /*#__PURE__*/React.createElement("span", {
     className: "stat"
-  }, /*#__PURE__*/React.createElement("b", null, doneToday), " \u05D4\u05D5\u05E9\u05DC\u05DE\u05D5"), /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement("b", null, doneToday), " הושלמו"), /*#__PURE__*/React.createElement("button", {
     className: 'ibtn' + (pushPrefs.endpoint ? ' on' : ''),
-    title: "\u05D4\u05EA\u05E8\u05D0\u05D5\u05EA",
+    title: "התראות",
     onClick: () => setPushOpen(true)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.bell,
@@ -7544,12 +7562,13 @@ function App() {
     style: {
       top: dropTarget.y
     }
-  }), taskList.map(it => /*#__PURE__*/React.createElement(Card, _extends({
+  }), taskList.map(it => /*#__PURE__*/React.createElement(Card, {
     key: it.id,
-    it: it
-  }, cardProps))), loaded && boardItems.length === 0 && /*#__PURE__*/React.createElement("div", {
+    it: it,
+    ...cardProps
+  })), loaded && boardItems.length === 0 && /*#__PURE__*/React.createElement("div", {
     className: "board-empty"
-  }, "\u05D0\u05D9\u05DF \u05DB\u05D0\u05DF \u05E2\u05D3\u05D9\u05D9\u05DF \u05DB\u05DC\u05D5\u05DD \u2014 \u05D4\u05D5\u05E1\u05D9\u05E4\u05D5 \u05E4\u05E8\u05D9\u05D8 \u05E8\u05D0\u05E9\u05D5\u05DF \u05DE\u05DC\u05DE\u05D8\u05D4."))), isTasks && !mobile && /*#__PURE__*/React.createElement("aside", {
+  }, "אין כאן עדיין כלום — הוסיפו פריט ראשון מלמטה."))), isTasks && !mobile && /*#__PURE__*/React.createElement("aside", {
     className: "side"
   }, /*#__PURE__*/React.createElement(CalendarView, {
     items: items,
@@ -7593,7 +7612,7 @@ function App() {
     size: 15
   }), "AI"), aiOn && /*#__PURE__*/React.createElement("button", {
     className: "ai-gear",
-    title: "\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA \u05D4\u05D7\u05D9\u05D1\u05D5\u05E8",
+    title: "הגדרות החיבור",
     onClick: () => setAiOpen(true)
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.gear,
@@ -7611,11 +7630,11 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("option", {
     value: "task"
-  }, "\u05DE\u05E9\u05D9\u05DE\u05D5\u05EA"), /*#__PURE__*/React.createElement("option", {
+  }, "משימות"), /*#__PURE__*/React.createElement("option", {
     value: "grocery:super"
-  }, "\u05E7\u05E0\u05D9\u05D5\u05EA \xB7 \u05E1\u05D5\u05E4\u05E8"), /*#__PURE__*/React.createElement("option", {
+  }, "קניות · סופר"), /*#__PURE__*/React.createElement("option", {
     value: "grocery:other"
-  }, "\u05E7\u05E0\u05D9\u05D5\u05EA \xB7 \u05D0\u05D7\u05E8"))), /*#__PURE__*/React.createElement("div", {
+  }, "קניות · אחר"))), /*#__PURE__*/React.createElement("div", {
     className: "who-pick"
   }, whoOptions.map(([val, mk]) => {
     const m = memberOf(mk);
@@ -7678,7 +7697,7 @@ function App() {
     className: "newtag"
   }, /*#__PURE__*/React.createElement("input", {
     value: newTagName,
-    placeholder: "\u05EA\u05D2 \u05D7\u05D3\u05E9\u2026",
+    placeholder: "תג חדש…",
     onChange: e => setNewTagName(e.target.value),
     onKeyDown: e => {
       if (e.key === 'Enter') {
@@ -7687,7 +7706,7 @@ function App() {
       }
     }
   }), /*#__PURE__*/React.createElement("button", {
-    title: "\u05D4\u05D5\u05E1\u05E4\u05EA \u05EA\u05D2",
+    title: "הוספת תג",
     disabled: !newTagName.trim(),
     onClick: addNewTag
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -7697,7 +7716,7 @@ function App() {
   })))))), /*#__PURE__*/React.createElement("button", {
     className: 'date-toggle' + (showDate ? ' on' : ''),
     onClick: () => setShowDate(s => !s),
-    title: "\u05EA\u05D0\u05E8\u05D9\u05DA/\u05E9\u05E2\u05D4"
+    title: "תאריך/שעה"
   }, /*#__PURE__*/React.createElement(Icon, {
     path: I.cal,
     size: 17
@@ -7714,7 +7733,7 @@ function App() {
   }), /*#__PURE__*/React.createElement("select", {
     value: repeat,
     onChange: e => setRepeat(e.target.value),
-    title: "\u05EA\u05D3\u05D9\u05E8\u05D5\u05EA \u05D7\u05D6\u05E8\u05D4"
+    title: "תדירות חזרה"
   }, REPEATS.map(r => /*#__PURE__*/React.createElement("option", {
     key: r.key || 'none',
     value: r.key
@@ -7763,11 +7782,11 @@ function App() {
     style: {
       width: drag.w
     }
-  }, /*#__PURE__*/React.createElement(Card, _extends({
-    it: draggedItem
-  }, cardProps, {
+  }, /*#__PURE__*/React.createElement(Card, {
+    it: draggedItem,
+    ...cardProps,
     floating: true
-  }))), editCats && /*#__PURE__*/React.createElement(CatEditor, {
+  })), editCats && /*#__PURE__*/React.createElement(CatEditor, {
     cats: smartCats,
     onSave: saveCategories,
     onClose: () => setEditCats(false)
